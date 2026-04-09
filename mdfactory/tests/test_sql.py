@@ -2,11 +2,9 @@
 # ABOUTME: schema handling, and data persistence behavior.
 """Tests for SQLite and Foundry data source backends including CRUD operations,."""
 
-import uuid
-
 import pytest
 
-from mdfactory.utils.data_manager import FoundryDataSource, SQLiteDataSource
+from mdfactory.utils.data_manager import SQLiteDataSource
 
 
 def test_basic_sql(tmp_path):
@@ -41,4 +39,3 @@ def test_basic_sql(tmp_path):
 
     ds.delete_data({})
     assert ds.load_data().empty
-
