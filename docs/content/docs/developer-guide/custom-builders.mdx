@@ -1,0 +1,142 @@
+---
+title: Custom Builders
+description: Add new system types to MDFactory
+---
+
+Adding a new system type requires a build function, a Pydantic composition model, and registration in the dispatch dictionary.
+
+## What you need
+
+1. **Composition model** — a Pydantic model defining the system-specific parameters
+2. **Build function** — a function that takes a `BuildInput` and produces simulation files
+3. **Registration** — entries in `DISPATCH_BUILD`, `type_mapping`, and the `BuildInput.simulation_type` Literal
+
+## Implementation steps
+
+### 1. Create a composition model
+
+Define a Pydantic model for your system's composition in `mdfactory/models/composition.py`:
+
+```python
+from pydantic import BaseModel, Field
+from .species import SingleMoleculeSpecies
+
+class MySystemComposition(SystemComposition):
+    """Composition for my custom system type."""
+
+    species: list[SingleMoleculeSpecies]
+    # Add system-specific fields
+    my_parameter: float = Field(1.0, description="Description of parameter")
+```
+
+`SystemComposition` is the base class providing `species`, `total_count`, and validation logic for fraction/count consistency.
+
+### 2. Register the composition model
+
+Add the model to `type_mapping` in `mdfactory/models/input.py`:
+
+```python
+type_mapping = {
+    "mixedbox": MixedBoxComposition,
+    "bilayer": BilayerComposition,
+    "lnp": LNPComposition,
+    "mysystem": MySystemComposition,  # Add here
+}
+```
+
+Update the `simulation_type` Literal:
+
+```python
+class BuildInput(BaseModel):
+    simulation_type: Literal["mixedbox", "bilayer", "lnp", "mysystem"]
+    # ...
+```
+
+### 3. Implement the build function
+
+Create the build function in `mdfactory/build.py`:
+
+```python
+def build_mysystem(inp: BuildInput):
+    """Build a custom system from BuildInput specification.
+
+    Parameters
+    ----------
+    inp : BuildInput
+        The validated build input with simulation_type="mysystem".
+    """
+    parametrize_fn = _get_parametrize_function(inp)
+
+    # Parametrize each species
+    parameters = []
+    for species in inp.system.species:
+        params = parametrize_fn(species)
+        parameters.append(params)
+
+    # Build system coordinates
+    # (use MDAnalysis, OpenMM, or custom logic)
+    u = create_my_system(inp.system)
+
+    # Ionize if needed
+    if hasattr(inp.system, "ionization"):
+        u = ionize_solvated_system(
+            inp.system.ionization, u, inp.system.charge
+        )
+
+    # Generate topology
+    topology_fn = DISPATCH_TOPOLOGY_BUILD[inp.engine]
+    topology_fn(u, inp.system.species, parameters, "system")
+
+    # Write coordinate file
+    u.atoms.write("system.pdb")
+```
+
+### 4. Register the build function
+
+Add to `DISPATCH_BUILD` in `mdfactory/workflows.py`:
+
+```python
+DISPATCH_BUILD = {
+    "mixedbox": build_mixedbox,
+    "bilayer": build_bilayer,
+    "lnp": build_lnp,
+    "mysystem": build_mysystem,  # Add here
+}
+```
+
+### 5. Handle CSV input (optional)
+
+If your system type will be used via CSV bulk input, ensure that `BuildInput.to_data_row()` and `BuildInput.from_data_row()` handle the new composition fields. The CSV parser in `mdfactory/prepare.py` uses dot-notation column names (e.g., `system.my_parameter`) to construct nested dicts.
+
+## Example YAML
+
+Users would specify the new system type like this:
+
+```yaml
+engine: gromacs
+simulation_type: mysystem
+parametrization: smirnoff
+
+system:
+  species:
+    - smiles: "CCO"
+      resname: ETH
+      count: 100
+  my_parameter: 2.5
+```
+
+## Testing
+
+Write tests that verify:
+
+- The composition model validates correctly (valid inputs accepted, invalid rejected)
+- The build function produces the expected output files
+- CSV round-tripping works (`to_data_row` → `from_data_row` produces equivalent model)
+
+## Next steps
+
+<Cards>
+  <Card title="Architecture" href="/docs/developer-guide/architecture" />
+  <Card title="Extending Engines" href="/docs/developer-guide/extending-engines" />
+  <Card title="Testing" href="/docs/developer-guide/testing" />
+</Cards>

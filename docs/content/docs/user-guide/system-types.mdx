@@ -1,0 +1,262 @@
+---
+title: System Types
+description: Understanding mixed box, bilayer, and LNP simulations
+---
+
+MDFactory supports three system-building strategies. Each uses different Pydantic composition models and build functions.
+
+## Mixed Box
+
+Creates a homogeneous mixture of molecules in a rectangular box. Molecules are packed to a target density using OpenMM compression.
+
+```mermaid
+graph LR
+    A[Place molecules] --> B[Compress with OpenMM]
+    B --> C[Ionize]
+    C --> D[Generate topology]
+```
+
+### Use cases
+
+- Solution simulations (solvent + solute)
+- Polymer blends
+- Small molecule mixtures
+- Bulk liquid properties
+
+### Configuration
+
+```yaml
+engine: gromacs
+simulation_type: mixedbox
+parametrization: smirnoff
+
+system:
+  species:
+    - smiles: "O"
+      resname: SOL
+      count: 900
+    - smiles: "CCO"
+      resname: ETH
+      count: 100
+  target_density: 1.0
+  ionization:
+    neutralize: true
+    concentration: 0.15
+```
+
+### MixedBoxComposition fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `species` | list of `SingleMoleculeSpecies` | — | Molecules in the system |
+| `total_count` | int \| null | null | Total molecule count (used with fractions) |
+| `target_density` | float | 1.0 | Target density in g/cm³ |
+| `ionization` | IonizationConfig | see below | Ion placement settings |
+
+### Tips
+
+- Use `count` for absolute molecule numbers or `fraction` for molar ratios (with `total_count`)
+- `target_density` determines the box size — no need to specify box dimensions
+- Fractions must sum to 1.0 across all species
+
+## Bilayer
+
+Builds lipid bilayer systems with water on both sides. Uses OpenMM compression to assemble the bilayer structure, then solvates and ionizes.
+
+```mermaid
+graph LR
+    A[Build bilayer] --> B[Compress with OpenMM]
+    B --> C[Solvate]
+    C --> D[Ionize]
+    D --> E[Generate topology]
+```
+
+### Use cases
+
+- Membrane simulations
+- Lipid phase behavior
+- Drug permeation studies
+- Bilayer property calculations (APL, order parameters, thickness)
+
+### Configuration
+
+```yaml
+engine: gromacs
+simulation_type: bilayer
+parametrization: cgenff
+
+system:
+  species:
+    - smiles: "CCCCCCCCCCCCCCCC(=O)OC[C@H](COP(=O)([O-])OCC[N+](C)(C)C)OC(=O)CCCCCCC/C=C\\CCCCCCCC"
+      resname: POPC
+      count: 128
+      head_atoms: [32, 33, 34, 35, 36, 37, 38, 39, 40, 41]
+      tail_atoms: []
+  z_padding: 20.0
+  monolayer: false
+  ionization:
+    neutralize: true
+    concentration: 0.15
+```
+
+### BilayerComposition fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `species` | list of `LipidSpecies` | — | Lipid molecules (uses `LipidSpecies` with head/tail atom indices) |
+| `total_count` | int \| null | null | Total lipid count (used with fractions) |
+| `z_padding` | float | 20.0 | Water padding above/below bilayer in Å |
+| `monolayer` | bool | false | Build a monolayer instead of bilayer |
+| `ionization` | IonizationConfig | see below | Ion placement settings |
+
+### LipidSpecies fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `smiles` | string | — | Canonical SMILES |
+| `resname` | string | — | Residue name (max 4 chars) |
+| `count` or `fraction` | int or float | — | Number or molar fraction |
+| `head_atoms` | list of int | [] | 0-based atom indices for headgroup (auto-detected if empty) |
+| `tail_atoms` | list of int | [] | 0-based atom indices for tail (auto-detected if empty) |
+| `branch_atoms` | list of int | [] | 0-based atom indices for branch points (auto-detected if empty) |
+
+### Tips
+
+- Lipid count must be even for bilayers (split between leaflets)
+- `head_atoms` and `tail_atoms` are auto-detected from SMILES if not provided
+- Use `monolayer: true` for monolayer systems
+
+## Lipid Nanoparticle (LNP)
+
+Builds spherical lipid nanoparticle systems with a hydrophobic core and lipid monolayer shell. The build process creates the core and shell separately, merges them, then solvates with spherical exclusion and ionizes.
+
+```mermaid
+graph LR
+    A[Build core] --> B[Build shell]
+    B --> C[Merge components]
+    C --> D[Solvate with sphere exclusion]
+    D --> E[Ionize]
+    E --> F[Generate topology]
+```
+
+### Use cases
+
+- mRNA vaccine delivery vehicles
+- Drug encapsulation and delivery
+- Ionizable lipid formulations
+- PEGylated nanoparticle systems
+
+### Configuration
+
+```yaml
+engine: gromacs
+simulation_type: lnp
+parametrization: smirnoff
+
+system:
+  radius: 60.0
+  shell_thickness: 28.0
+  padding: 25.0
+
+  core:
+    species:
+      - smiles: "IONIZABLE_LIPID_SMILES"
+        resname: ILN
+        fraction: 0.4
+      - smiles: "CHOLESTEROL_SMILES"
+        resname: CHL
+        fraction: 0.6
+    target_density: 0.95
+    replication_factor: 1
+
+  shell:
+    species:
+      - smiles: "DSPC_SMILES"
+        resname: DSP
+        fraction: 0.5
+      - smiles: "PEG_LIPID_SMILES"
+        resname: PEG
+        fraction: 0.5
+    z0: 10.0
+    area_per_lipid: 65.0
+
+  ionization:
+    neutralize: true
+    concentration: 0.15
+```
+
+### LNPComposition fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `radius` | float | — | Total LNP radius in Å |
+| `shell_thickness` | float | 28.0 | Lipid monolayer thickness in Å |
+| `padding` | float | 25.0 | Water padding around the nanoparticle in Å |
+| `core` | CoreComposition | — | Core composition |
+| `shell` | ShellComposition | — | Shell composition |
+| `ionization` | IonizationConfig | see below | Ion placement settings |
+
+### CoreComposition fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `species` | list of `SingleMoleculeSpecies` | — | Core molecules (must use `fraction`) |
+| `target_density` | float | 0.95 | Target density for core packing in g/cm³ |
+| `replication_factor` | int | 1 | Unit cell replication factor |
+
+### ShellComposition fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `species` | list of `LipidSpecies` | — | Shell lipids (must use `fraction`) |
+| `z0` | float | 10.0 | Pivotal plane offset in Å |
+| `area_per_lipid` | float | 65.0 | Area per lipid in shell in Å² |
+
+### Tips
+
+- Core species must all use `fraction` (not `count`), and fractions must sum to 1.0
+- Shell species must also use `fraction` summing to 1.0
+- `core_radius` is computed as `radius - shell_thickness`
+- Molecule counts are calculated automatically from the geometry and density
+- Include both neutral and protonated forms of ionizable lipids as separate species
+
+## IonizationConfig (shared)
+
+All system types support ionization configuration:
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `neutralize` | bool | true | Add counter-ions to neutralize system charge |
+| `concentration` | float | 0.15 | Ion concentration in mol/L |
+| `min_distance` | float | 5.0 | Minimum distance between ions in Å |
+| `seed` | int \| null | null | Random seed for ion placement |
+
+## SingleMoleculeSpecies fields (shared)
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `smiles` | string | — | Canonical isomeric SMILES |
+| `resname` | string | — | Residue name (max 4 chars) |
+| `count` | int \| null | null | Absolute molecule count |
+| `fraction` | float \| null | null | Molar fraction (0 to 1) |
+
+Either `count` or `fraction` must be provided (not both).
+
+## Choosing a system type
+
+| System Type | Best For | Complexity |
+|------------|----------|------------|
+| `mixedbox` | Solution chemistry, bulk properties | Low |
+| `bilayer` | Membrane systems, lipid studies | Medium |
+| `lnp` | Drug delivery, mRNA vaccines | High |
+
+<Callout type="info">
+  All system types use the same parametrization and topology generation workflows. Switch between them by changing the `simulation_type` field.
+</Callout>
+
+## Next steps
+
+<Cards>
+  <Card title="Workflows" href="/docs/user-guide/workflows" />
+  <Card title="Configuration" href="/docs/user-guide/configuration" />
+</Cards>

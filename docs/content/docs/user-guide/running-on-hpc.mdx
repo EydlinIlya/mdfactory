@@ -1,0 +1,419 @@
+---
+title: Running on HPC Clusters
+description: Deploy MDFactory workflows on SLURM-based HPC clusters
+---
+
+MDFactory works well on SLURM-based HPC clusters for large-scale simulation campaigns.
+
+## Prerequisites
+
+- SSH access to your HPC cluster
+- SLURM workload manager
+- Python 3.11+, Nextflow, and Apptainer/Singularity available (via modules or otherwise)
+
+## Installation on HPC
+
+<Steps>
+<Step>
+
+SSH into your cluster:
+
+```bash
+ssh your-cluster.example.com
+```
+
+</Step>
+<Step>
+
+Load required modules (names may vary by site):
+
+```bash
+module load nextflow apptainer python/3.11
+```
+
+</Step>
+<Step>
+
+Install MDFactory in your project directory:
+
+```bash
+cd /path/to/your/project
+git clone https://github.com/emdgroup/mdfactory.git
+cd mdfactory
+pip install -e .
+```
+
+</Step>
+</Steps>
+
+## Queue selection
+
+Most SLURM clusters offer several partitions. Choose based on your workload:
+
+- **CPU partition**: CPU-only MD engines, preprocessing, analysis
+- **GPU partition**: GPU-accelerated GROMACS/LAMMPS runs
+- **Large-memory partition**: Very large systems or multi-GPU runs
+- **Interactive partition**: Testing, visualization, debugging
+
+Consult your cluster's documentation for available partitions, GPU types, and resource limits.
+
+## Nextflow configuration
+
+Create `nextflow.config` in your pipeline directory. Adjust partition names, GPU types, and resource limits to match your cluster:
+
+```groovy
+process {
+  executor = 'slurm'
+  queue = 'gpu'
+
+  withName: 'minimization' {
+    cpus = 8
+    memory = '16 GB'
+    time = '2h'
+    clusterOptions = '--gres=gpu:1'
+  }
+
+  withName: 'equilibration' {
+    cpus = 16
+    memory = '32 GB'
+    time = '8h'
+    clusterOptions = '--gres=gpu:2'
+  }
+
+  withName: 'production' {
+    cpus = 32
+    memory = '64 GB'
+    time = '24h'
+    clusterOptions = '--gres=gpu:4'
+  }
+}
+
+executor {
+  $slurm {
+    queueSize = 50
+    submitRateLimit = '10 sec'
+  }
+}
+
+singularity {
+  enabled = true
+  autoMounts = true
+}
+```
+
+## SLURM job template
+
+Create a wrapper script `run_mdfactory.sh`. Adjust paths and module names for your site:
+
+```bash
+#!/usr/bin/env bash
+#SBATCH --job-name=mdfactory
+#SBATCH -A <your-account>
+#SBATCH --partition=cpu
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=8G
+#SBATCH --time=24:00:00
+#SBATCH --output=mdfactory_%j.out
+#SBATCH --error=mdfactory_%j.err
+#SBATCH --export=ALL
+
+set -euo pipefail
+
+module load nextflow apptainer python/3.11
+
+SHARED_SCRATCH="${SCRATCH}"
+SRC_DIR="$(realpath "${SRC_DIR:-${SLURM_SUBMIT_DIR:-$PWD}}")"
+JOB_TAG="${SLURM_JOB_NAME}_jobid_${SLURM_JOB_ID}"
+JOB_DIR="$SHARED_SCRATCH/$JOB_TAG"
+
+APPT_CACHE="$JOB_DIR/nf_apptainer_cache"
+APPT_TMP="${TMPDIR:-/tmp}/${USER}/appt_tmp"
+
+mkdir -p "$APPT_CACHE" "$APPT_TMP"
+
+export APPTAINER_TMPDIR="$APPT_TMP"
+export APPTAINER_CACHEDIR="$APPT_CACHE"
+export NXF_SINGULARITY_CACHEDIR="$APPT_CACHE"
+export NXF_HOME="$JOB_DIR/.nextflow"
+export NXF_OPTS=${NXF_OPTS:-'-Xms1g -Xmx8g'}
+
+echo "[INFO] Job directory: $JOB_DIR"
+echo "[INFO] Source directory: $SRC_DIR"
+echo "[INFO] Controller node: $(hostname)"
+
+mkdir -p "$JOB_DIR"/{work,results}
+rsync -a --delete \
+  --exclude '.git' \
+  --exclude 'work' \
+  --exclude 'results' \
+  --exclude '.nextflow*' \
+  "$SRC_DIR/" "$JOB_DIR/"
+
+rsync -a "$HOME/nf_apptainer_cache/" "$APPT_CACHE/" 2>/dev/null || true
+
+DEST_DIR="${DEST_DIR:-$HOME/mdfactory_results/$JOB_TAG}"
+mkdir -p "$DEST_DIR"
+
+CSV_FILE="${CSV_FILE:-systems.csv}"
+CSV_BASENAME="$(basename "$CSV_FILE")"
+SUMMARY_YAML="${CSV_BASENAME%.csv}.yaml"
+
+finish() {
+  set +e
+  echo "[INFO] Copying results to $DEST_DIR"
+
+  rsync -a "$JOB_DIR/results/" "$DEST_DIR/results/"
+  rsync -a "$JOB_DIR"/.nextflow* "$DEST_DIR/" 2>/dev/null || true
+  rsync -a "$JOB_DIR"/mdfactory_*.out "$DEST_DIR/" 2>/dev/null || true
+  rsync -a "$APPT_CACHE/" "$HOME/nf_apptainer_cache/"
+
+  if [[ "${CLEANUP:-true}" == "true" ]]; then
+    rm -rf "$JOB_DIR"
+  fi
+}
+trap finish EXIT
+
+cd "$JOB_DIR"
+
+nextflow run workflows/build.nf \
+  --csv_file "$CSV_FILE" \
+  --output_dir "$JOB_DIR/results" \
+  -work-dir "$JOB_DIR/work/build" \
+  "$@"
+
+nextflow run workflows/simulate.nf \
+  -c workflows/simulate.config \
+  --base_dir "$JOB_DIR/results" \
+  --config_yaml "$JOB_DIR/results/$SUMMARY_YAML" \
+  -work-dir "$JOB_DIR/work/simulate" \
+  "$@"
+
+echo "[INFO] Pipeline completed"
+```
+
+## Submit the job
+
+```bash
+sbatch run_mdfactory.sh
+```
+
+Check status:
+
+```bash
+squeue -u $USER
+```
+
+## Submit analyses with submitit
+
+For a full walkthrough of running analyses, see the
+[Executing Analyses](./executing-analyses) tutorial.
+
+Install with the submitit extra:
+
+```bash
+pip install "mdfactory[submitit]"
+```
+
+Submit one job per simulation to SLURM:
+
+```bash
+mdfactory analysis run \
+  systems.yaml \
+  --analysis area_per_lipid \
+  --slurm \
+  --account <your-account>
+```
+
+Override SLURM resources:
+
+```bash
+mdfactory analysis run \
+  systems.yaml \
+  --analysis area_per_lipid \
+  --slurm \
+  --account <your-account> \
+  --partition cpu \
+  --cpus 8 \
+  --mem-gb 16 \
+  --time 4h
+```
+
+View analysis status:
+
+```bash
+mdfactory analysis info systems.yaml
+```
+
+## Submit artifacts with submitit
+
+Run artifacts locally (default):
+
+`SOURCE` can be either a simulation directory or a build summary YAML.
+
+```bash
+mdfactory analysis artifacts run systems.yaml --artifact bilayer_snapshot
+```
+
+Submit one job per simulation to SLURM:
+
+```bash
+mdfactory analysis artifacts run \
+  systems.yaml \
+  --artifact bilayer_snapshot \
+  --slurm \
+  --account <your-account>
+```
+
+Override tool paths and output prefix:
+
+```bash
+mdfactory analysis artifacts run \
+  systems.yaml \
+  --artifact bilayer_movie \
+  --vmd-path /path/to/vmd \
+  --ffmpeg-path /path/to/ffmpeg \
+  --output-prefix bilayer_movie
+```
+
+View artifact status:
+
+`SOURCE` can be either a simulation directory or a build summary YAML.
+
+```bash
+mdfactory analysis artifacts info systems.yaml
+```
+
+## Preprocess trajectories
+
+Run a preprocessing script (local only) for each simulation:
+
+```bash
+mdfactory analysis preprocess \
+  systems.yaml \
+  --script ./wrap_traj.sh
+```
+
+Example `gmx trjconv` wrapper script that outputs a wrapped trajectory with
+whole molecules (save as `wrap_traj.sh` and make executable):
+
+```bash
+#!/bin/sh
+STRUCTURE=$1
+TRAJ=$2
+OUTPUT=$3
+SIM_DIR=$4
+
+cd "$SIM_DIR"
+gmx trjconv -s "$STRUCTURE" -f "$TRAJ" -o "$OUTPUT" -pbc mol -ur compact <<EOF
+0
+EOF
+```
+
+The script is invoked from within each simulation directory and receives positional
+arguments in this order:
+
+```
+<structure> <trajectory> <output> <sim-dir>
+```
+
+Monitor output:
+
+```bash
+tail -f mdfactory_<jobid>.out
+```
+
+## Storage best practices
+
+Use your cluster's storage tiers appropriately:
+
+- **Project/home storage**: Input files, final results, code
+- **Scratch storage** (`$SCRATCH`): Temporary files, work directories (typically auto-cleaned)
+- **Local node storage** (`$TMPDIR` or similar): Fast node-local disk for I/O intensive tasks
+
+## Workflow diagram
+
+```mermaid
+graph LR
+    A[Submit Job] --> B[Controller]
+    B --> C[Spawn Tasks]
+    C --> D[GPU Queue]
+    D --> E[Results]
+    E --> F[Copy to Project]
+```
+
+## Best practices
+
+**Use scratch for work directories**
+
+Temporary Nextflow work files should go to scratch:
+
+```groovy
+workDir = "${System.getenv('SCRATCH')}/work"
+```
+
+**Request appropriate resources**
+
+Match resource requests to actual needs:
+
+```groovy
+process {
+  // Don't over-request
+  cpus = 8      // not 256
+  memory = '16 GB'  // not 1 TB
+}
+```
+
+**Monitor job efficiency**
+
+After completion, check resource usage:
+
+```bash
+sacct -j <jobid> --format=JobID,Elapsed,ReqMem,MaxRSS,ReqCPUS,AllocCPUS
+```
+
+**Cache molecule parameters**
+
+Keep database on persistent storage to reuse parameters:
+
+```ini
+[csv]
+MOLECULE_DB_PATH = /path/to/your/project/mdfactory/molecules.csv
+```
+
+## Troubleshooting
+
+**Job pending in queue**
+
+Check why with:
+
+```bash
+squeue -j <jobid> -o "%18i %9P %8j %8u %2t %19S %6D %20R"
+```
+
+Common reasons:
+- Resources not available
+- Queue limits reached
+- Invalid resource request
+
+**Out of scratch space**
+
+Clean old work directories:
+
+```bash
+rm -rf $SCRATCH/work/
+```
+
+**Permission errors**
+
+Check file permissions in project directory:
+
+```bash
+chmod -R g+rw /path/to/your/project/mdfactory
+```
+
+## Next steps
+
+<Cards>
+  <Card title="Workflows" href="/docs/user-guide/workflows" />
+  <Card title="Configuration" href="/docs/user-guide/configuration" />
+</Cards>

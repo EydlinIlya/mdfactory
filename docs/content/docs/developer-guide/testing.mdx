@@ -1,0 +1,72 @@
+---
+title: Testing
+description: Test strategy and commands used in this repository
+---
+
+MDFactory uses `pytest`. The repository also defines default pytest options in `pyproject.toml`, including coverage reporting and marker exclusions.
+
+## Common commands
+
+Short test loop:
+
+```bash
+pytest -k "not build" mdfactory
+```
+
+Run the full default suite:
+
+```bash
+pytest
+```
+
+Run one file:
+
+```bash
+pytest mdfactory/tests/test_simulation.py
+```
+
+Run tests matching a pattern:
+
+```bash
+pytest -k "analysis"
+```
+
+## Markers
+
+The repository declares these pytest markers:
+
+- `foundry_live`
+- `slow`
+
+The default pytest config excludes both markers unless you opt in.
+
+## Foundry live tests
+
+`mdfactory/tests/test_foundry_live.py` is opt-in and expects real Foundry access:
+
+```bash
+export MDF_TEST_FOUNDRY=1
+export MDF_TEST_FOUNDRY_BASE_PATH="/Group Functions/mdfactory-ci/$USER"
+pytest -m foundry_live mdfactory/tests/test_foundry_live.py
+```
+
+## Useful test areas
+
+- Build and model validation: `test_models.py`, `test_build.py`, `test_prepare.py`
+- Analysis execution and storage: `test_simulation.py`, `test_analysis_registry.py`, `test_analysis_utils.py`, `test_submit.py`
+- Sync backends and Foundry setup: `test_push*.py`, `test_pull*.py`, `test_sync_*.py`, `test_db_operations.py`, `test_csv_backend.py`
+
+## Coverage
+
+Coverage is already enabled in the default pytest configuration. To inspect terminal output with missing lines:
+
+```bash
+pytest --cov=mdfactory --cov-report=term-missing
+```
+
+## Next steps
+
+<Cards>
+  <Card title="Contributing" href="/docs/developer-guide/contributing" />
+  <Card title="Adding Analyses and Artifacts" href="/docs/developer-guide/adding-analyses-artifacts" />
+</Cards>

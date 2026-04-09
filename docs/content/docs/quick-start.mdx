@@ -1,0 +1,125 @@
+---
+title: Quick Start
+description: Build a simple mixed-box system with the current CLI
+---
+
+This guide walks through the current CLI path for a simple mixed-box system.
+
+<Steps>
+<Step>
+
+## Set up configuration
+
+Run the interactive configuration wizard:
+
+```bash
+mdfactory config init
+```
+
+This creates a config file at `~/.config/mdfactory/config.ini` (or the platform-appropriate location) and sets up the database backend and data directories.
+
+You can verify the configuration afterwards:
+
+```bash
+mdfactory config show
+```
+
+</Step>
+<Step>
+
+## Define your system
+
+Create a file called `system.yaml`:
+
+```yaml
+engine: gromacs
+simulation_type: mixedbox
+parametrization: smirnoff
+system:
+  species:
+    - smiles: "O"
+      resname: SOL
+      count: 900
+    - smiles: "CCO"
+      resname: ETH
+      count: 100
+  target_density: 1.0
+```
+
+This defines a mixed box with water and ethanol species at a target density.
+
+</Step>
+<Step>
+
+## Prepare bulk input (optional)
+
+If you have multiple systems defined in a CSV file, convert them to individual YAML files:
+
+```bash
+mdfactory prepare-build sample_input.csv output_systems
+```
+
+Each row in the CSV becomes a separate hash directory with its own YAML file. Use `mdfactory check-csv sample_input.csv` to validate the CSV before building.
+
+</Step>
+<Step>
+
+## Build the simulation
+
+Generate simulation files from the YAML:
+
+```bash
+mkdir -p simulation_dir
+mdfactory build system.yaml simulation_dir
+```
+
+This writes GROMACS-ready build output into `simulation_dir`.
+
+</Step>
+<Step>
+
+## Run with Nextflow (optional)
+
+For high-throughput runs, use the checked-in workflows:
+
+Build many systems from CSV:
+
+```bash
+nextflow run workflows/build.nf \
+  --csv_file sample_input.csv \
+  --output_dir output_systems
+```
+
+Run the GROMACS chain using the generated summary YAML:
+
+```bash
+nextflow run workflows/simulate.nf \
+  -c workflows/simulate.config \
+  --base_dir output_systems \
+  --config_yaml output_systems/sample_input.yaml
+```
+
+</Step>
+</Steps>
+
+## Common build outputs
+
+After `mdfactory build`, the output directory typically contains:
+
+- `system.pdb`
+- `topology.top`
+- `em.mdp`
+- `nvt.mdp`
+- `npt.mdp`
+- `md.mdp`
+
+The first run also fills the configured parameter store so later builds can reuse previously parametrized molecules.
+
+## Next steps
+
+<Cards>
+  <Card title="20-System Tutorial" href="/docs/user-guide/tutorial-mixedbox-campaign" />
+  <Card title="Configuration" href="/docs/user-guide/configuration" />
+  <Card title="Workflows" href="/docs/user-guide/workflows" />
+  <Card title="Executing Analyses" href="/docs/user-guide/executing-analyses" />
+</Cards>

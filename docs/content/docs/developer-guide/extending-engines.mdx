@@ -1,0 +1,137 @@
+---
+title: Extending Engines
+description: Add support for new MD simulation engines
+---
+
+MDFactory uses dispatch dictionaries to route engine-specific operations. Adding a new engine means implementing parametrization and topology generation functions, then registering them in the dispatch dicts.
+
+## What an engine needs
+
+Each engine requires three things:
+
+1. **Parametrize function(s)** — generate force field parameters for a molecule and return a parameter set
+2. **Topology generation function** — combine molecule parameters into a complete system topology
+3. **Dispatch registration** — entries in `DISPATCH_ENGINE_PARAMETRIZE` and `DISPATCH_TOPOLOGY_BUILD`
+
+## Implementation steps
+
+### 1. Implement parametrization
+
+Create a function that takes a `SingleMoleculeSpecies` and returns a parameter set. The function should handle water and ions as special cases.
+
+```python
+# In mdfactory/parametrize.py (or a new module)
+
+from mdfactory.models.species import SingleMoleculeSpecies
+from mdfactory.models.parametrization import GromacsSingleMoleculeParameterSet
+
+def parametrize_smirnoff_myengine(
+    species: SingleMoleculeSpecies,
+    smirnoff_config=None,
+) -> MyEngineParameterSet:
+    """Generate parameters for a molecule using SMIRNOFF for MyEngine."""
+
+    if species.is_water:
+        return _parametrize_water(species, smirnoff_config)
+    if species.is_ion:
+        return _parametrize_ion(species, smirnoff_config)
+
+    # Generate parameters for regular molecules
+    # Cache results in parameter_store/{engine}/{method}/{ff_hash}/{mol_hash}/
+    ...
+```
+
+### 2. Implement topology generation
+
+Create a function that combines individual molecule parameters into a complete system topology:
+
+```python
+def generate_myengine_topology(u, species, parameters, system_name):
+    """Generate topology files for MyEngine.
+
+    Parameters
+    ----------
+    u : MDAnalysis.Universe
+        The built system with coordinates.
+    species : list
+        List of species in the system.
+    parameters : list
+        List of parameter sets for each species.
+    system_name : str
+        Name for the output files.
+    """
+    # Write engine-specific topology files
+    ...
+```
+
+### 3. Create a parameter set model
+
+If your engine uses a different file format than GROMACS ITP, create a parameter set model:
+
+```python
+from pydantic import BaseModel
+
+class MyEngineParameterSet(BaseModel):
+    moleculetype: str
+    smiles: str
+    parametrization: str
+    parametrization_config: ParametrizationConfig
+    # Add engine-specific fields (e.g., paths to parameter files)
+```
+
+### 4. Register in dispatch dictionaries
+
+Add entries to the dispatch dicts in `mdfactory/parametrize.py`:
+
+```python
+DISPATCH_ENGINE_PARAMETRIZE = {
+    "gromacs": {
+        "cgenff": parametrize_cgenff_gromacs,
+        "smirnoff": parametrize_smirnoff_gromacs,
+    },
+    "myengine": {  # Add new engine
+        "smirnoff": parametrize_smirnoff_myengine,
+    },
+}
+
+DISPATCH_TOPOLOGY_BUILD = {
+    "gromacs": generate_gromacs_topology,
+    "myengine": generate_myengine_topology,  # Add new engine
+}
+
+parameter_set_types = {
+    "gromacs": GromacsSingleMoleculeParameterSet,
+    "myengine": MyEngineParameterSet,  # Add new engine
+}
+```
+
+### 5. Update the BuildInput model
+
+Add the new engine to the `engine` Literal type in `mdfactory/models/input.py`:
+
+```python
+class BuildInput(BaseModel):
+    engine: Literal["gromacs", "myengine"] = "gromacs"
+    # ... rest of fields
+```
+
+### 6. Update build functions
+
+If the new engine requires different build logic, update the build functions in `mdfactory/build.py` to handle the new engine. The `_get_parametrize_function` helper may need updating to pass engine-specific config.
+
+## Testing
+
+Write tests that verify:
+
+- Parametrization produces valid parameter files for simple molecules, water, and ions
+- Parameter caching works (second call returns cached results)
+- Topology generation produces valid output
+- End-to-end build with the new engine completes
+
+## Next steps
+
+<Cards>
+  <Card title="Architecture" href="/docs/developer-guide/architecture" />
+  <Card title="Custom Builders" href="/docs/developer-guide/custom-builders" />
+  <Card title="Testing" href="/docs/developer-guide/testing" />
+</Cards>

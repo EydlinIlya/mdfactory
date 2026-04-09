@@ -1,0 +1,107 @@
+---
+title: Adding Analyses and Artifacts
+description: Extend the analysis registry with code paths that exist today
+---
+
+This page describes the current extension path implemented in `mdfactory.analysis`.
+
+## Current registry shape
+
+Two registries drive execution:
+
+- `mdfactory.analysis.simulation.ANALYSIS_REGISTRY`
+- `mdfactory.analysis.artifacts.ARTIFACT_REGISTRY`
+
+Both registries are keyed by `simulation_type`. In the current codebase, entries exist for `bilayer` and `mixedbox`.
+
+## Add a new analysis
+
+An analysis function should accept a `Simulation` object as its first argument and return a `pandas.DataFrame`.
+
+Minimal shape:
+
+```python
+def my_analysis(simulation, **kwargs) -> pd.DataFrame:
+    ...
+    return df
+```
+
+Then:
+
+1. Implement the function in the appropriate analysis module.
+2. Register it in `ANALYSIS_REGISTRY[simulation_type]`.
+3. Add tests for direct execution and saved output.
+
+Example registration pattern:
+
+```python
+ANALYSIS_REGISTRY["bilayer"]["my_analysis"] = my_analysis
+```
+
+### What the framework does for you
+
+When `Simulation.run_analysis("my_analysis")` is called, MDFactory:
+
+1. Resolves the function from `ANALYSIS_REGISTRY`
+2. Filters unsupported keyword arguments based on the function signature
+3. Executes the function
+4. Writes `.analysis/my_analysis.parquet`
+5. Updates `.analysis/metadata.json` through `AnalysisRegistry`
+
+Any keyword arguments that survive filtering are stored in the registry entry under `extras`.
+
+## Add a new artifact
+
+An artifact producer should accept a `Simulation` object as its first argument and return either:
+
+- `Path`
+- `list[Path]`
+
+Minimal shape:
+
+```python
+def my_artifact(simulation, **kwargs) -> Path | list[Path]:
+    ...
+    return output_path
+```
+
+Then:
+
+1. Implement the producer.
+2. Register it in `ARTIFACT_REGISTRY[simulation_type]`.
+3. Add tests for file creation and registry metadata.
+
+Example registration pattern:
+
+```python
+ARTIFACT_REGISTRY["bilayer"]["my_artifact"] = my_artifact
+```
+
+### What the framework does for you
+
+When `Simulation.run_artifact("my_artifact")` is called, MDFactory:
+
+1. Resolves the producer from `ARTIFACT_REGISTRY`
+2. Executes it
+3. Moves the returned files into `.analysis/artifacts/my_artifact/`
+4. Computes checksums
+5. Records file metadata in `.analysis/metadata.json`
+
+## Good test targets
+
+Use the existing tests as patterns:
+
+- `mdfactory/tests/test_simulation.py`
+- `mdfactory/tests/test_analysis_registry.py`
+- `mdfactory/tests/test_submit.py`
+
+## Notes on CLI integration
+
+The CLI forwards a shared set of analysis parameters such as `start_ns`, `end_ns`, `last_ns`, `stride`, and `max_residues`. Analyses that do not declare one of those arguments simply ignore it because `Simulation.run_analysis()` filters unsupported kwargs before calling the function.
+
+## Next steps
+
+<Cards>
+  <Card title="Architecture" href="/docs/developer-guide/architecture" />
+  <Card title="Executing Analyses" href="/docs/user-guide/executing-analyses" />
+</Cards>

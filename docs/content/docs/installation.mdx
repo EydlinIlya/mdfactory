@@ -1,0 +1,135 @@
+---
+title: Installation
+description: Install MDFactory for production use or development
+---
+
+## Requirements
+
+- Python 3.11 or higher
+- [pixi](https://pixi.sh) (recommended) or conda/mamba
+- Git
+
+## Install from source
+
+<Steps>
+<Step>
+
+Clone the repository:
+
+```bash
+git clone https://github.com/emdgroup/mdfactory.git
+cd mdfactory
+```
+
+</Step>
+<Step>
+
+Install with pixi (recommended):
+
+```bash
+pixi install
+```
+
+This creates the environment and installs all conda-forge and pip dependencies in one step.
+
+**Without pixi**, create a conda environment manually:
+
+```bash
+conda create -n mdfactory -c conda-forge python rdkit \
+    openff-toolkit openff-interchange openff-nagl openff-units openmm
+conda activate mdfactory
+pip install -e .
+```
+
+</Step>
+</Steps>
+
+## Development installation
+
+If you plan to contribute or modify the code, install development tooling:
+
+**With pixi:**
+
+```bash
+pixi run -e dev test
+```
+
+The `dev` environment includes testing and linting tools.
+
+**Without pixi:**
+
+```bash
+conda activate mdfactory
+pip install -e .[dev]
+```
+
+## Verify installation
+
+Check that MDFactory is installed correctly:
+
+```bash
+python -c "import mdfactory; print(mdfactory.__version__)"
+```
+
+Then verify the CLI:
+
+```bash
+pixi run mdfactory --help
+```
+
+Or without pixi (with the conda environment activated):
+
+```bash
+mdfactory --help
+```
+
+## MD engine dependencies
+
+MDFactory currently supports GROMACS workflows with OpenMM-assisted build steps.
+
+### GROMACS
+
+```bash
+conda install -c conda-forge gromacs
+```
+
+### OpenMM
+
+```bash
+conda install -c conda-forge openmm
+```
+
+LAMMPS support is on the roadmap and is not currently supported in the active workflows.
+
+## Optional components
+
+### Submitit for SLURM analysis jobs
+
+```bash
+pip install "mdfactory[submitit]"
+```
+
+### Foundry integration
+
+```bash
+pip install "mdfactory[foundry]"
+```
+
+The interactive Foundry setup also expects the `fdt` command to be available on `PATH`.
+
+### CGenFF
+
+If you use `parametrization: cgenff`, configure the SilcsBio install path in your config file (typically `~/.config/mdfactory/config.ini`):
+
+```ini
+[cgenff]
+SILCSBIODIR = /path/to/silcsbio
+```
+
+## Next steps
+
+<Cards>
+  <Card title="Quick Start" href="/docs/quick-start" />
+  <Card title="Configuration" href="/docs/user-guide/configuration" />
+  <Card title="Foundry Dev Tools" href="/docs/user-guide/foundry-dev-tools" />
+</Cards>

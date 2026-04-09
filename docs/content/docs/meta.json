@@ -1,0 +1,19 @@
+{
+  "title": "Documentation",
+  "root": true,
+  "defaultOpenLevel": 0,
+  "pages": [
+    "index",
+    "---Getting Started---",
+    "installation",
+    "quick-start",
+    "---Guides---",
+    "user-guide",
+    "developer-guide",
+    "---Reference---",
+    "api",
+    "---Legal & Contact---",
+    "license",
+    "enquiries"
+  ]
+}

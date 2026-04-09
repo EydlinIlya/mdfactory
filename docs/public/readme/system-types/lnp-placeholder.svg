@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="420" viewBox="0 0 640 420" role="img" aria-labelledby="title desc">
+  <title id="title">LNP placeholder</title>
+  <desc id="desc">Placeholder artwork for the LNP system type.</desc>
+  <rect width="640" height="420" fill="#f3f7f1"/>
+  <rect x="24" y="24" width="592" height="372" rx="24" fill="#e4efe2" stroke="#47625a" stroke-width="4"/>
+  <circle cx="320" cy="190" r="112" fill="#9fb8a7" stroke="#47625a" stroke-width="8"/>
+  <circle cx="320" cy="190" r="72" fill="#47625a" opacity="0.92"/>
+  <circle cx="320" cy="78" r="16" fill="#c98f2b"/>
+  <circle cx="405" cy="104" r="16" fill="#c98f2b"/>
+  <circle cx="432" cy="190" r="16" fill="#c98f2b"/>
+  <circle cx="405" cy="276" r="16" fill="#c98f2b"/>
+  <circle cx="320" cy="302" r="16" fill="#c98f2b"/>
+  <circle cx="235" cy="276" r="16" fill="#c98f2b"/>
+  <circle cx="208" cy="190" r="16" fill="#c98f2b"/>
+  <circle cx="235" cy="104" r="16" fill="#c98f2b"/>
+  <text x="320" y="350" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="38" fill="#2f413b">LNP</text>
+  <text x="320" y="382" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#5f756d">Placeholder image</text>
+</svg>

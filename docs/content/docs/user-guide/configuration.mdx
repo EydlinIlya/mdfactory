@@ -1,0 +1,196 @@
+---
+title: Configuration
+description: Configure MDFactory databases, paths, and runtime settings
+---
+
+MDFactory uses INI files for global settings and YAML files for simulation-specific parameters.
+
+## Managing configuration with the CLI
+
+The `mdfactory config` command group provides tools to manage your configuration:
+
+```bash
+mdfactory config init   # interactive setup wizard
+mdfactory config show   # display active configuration
+mdfactory config path   # print config file path
+mdfactory config edit   # open config in $EDITOR
+```
+
+Running `mdfactory config init` walks you through selecting a database backend and setting paths interactively.
+
+## Global configuration
+
+The main config file lives at `~/.config/mdfactory/config.ini` (or the platform-appropriate location determined by [`platformdirs`](https://pypi.org/project/platformdirs/)).
+
+You can always print the active path with:
+
+```bash
+mdfactory config path
+```
+
+### Database settings
+
+<Tabs items={['SQLite', 'CSV', 'Foundry']}>
+<Tab value="SQLite">
+
+SQLite is the default backend:
+
+```ini
+[database]
+TYPE = sqlite
+
+[databases]
+USE_RUN_DB = true
+USE_ANALYSIS_DB = true
+
+[sqlite]
+RUN_DB_PATH = <platform data dir>/runs.db
+ANALYSIS_DB_PATH = <platform data dir>/analysis.db
+```
+
+</Tab>
+<Tab value="CSV">
+
+Use CSV files for simple setups:
+
+```ini
+[database]
+TYPE = csv
+
+[databases]
+USE_RUN_DB = true
+USE_ANALYSIS_DB = true
+
+[csv]
+RUN_DB_PATH = <platform data dir>/runs.csv
+ANALYSIS_DB_PATH = <platform data dir>/analysis
+```
+
+</Tab>
+<Tab value="Foundry">
+
+Use Foundry for enterprise deployments:
+
+```ini
+[database]
+TYPE = foundry
+
+[databases]
+USE_RUN_DB = true
+USE_ANALYSIS_DB = true
+
+[foundry]
+BASE_PATH = /Group Functions/mdfactory
+ANALYSIS_NAME = analysis
+RUN_DB_PATH = /Group Functions/mdfactory/runs
+ANALYSIS_DB_PATH = /Group Functions/mdfactory/analysis
+ARTIFACT_DB_PATH = /Group Functions/mdfactory/artifacts
+```
+
+</Tab>
+</Tabs>
+
+## Config wizard details (`mdfactory config init`)
+
+The interactive wizard performs this flow in the current code:
+
+1. Optional CGenFF prompt:
+   `Do you use CGenFF (SILCSBIO)?`
+   if yes, asks for `SILCSBIODIR`.
+2. Parameter store prompt:
+   `Parameter store directory:`
+3. Backend selection:
+   `Database backend:` with choices `sqlite`, `csv`, `foundry`.
+4. Backend-specific prompts (below).
+5. Writes config to the user config path (`mdfactory config path`).
+6. Optional initialization:
+   `Initialize databases now?`
+
+### SQLite prompt details
+
+When `sqlite` is selected, the wizard asks:
+
+- `RUN_DATABASE path:`
+- `ANALYSIS_DATABASE path:`
+
+Both are normalized to absolute local paths.
+
+### CSV prompt details
+
+When `csv` is selected, the wizard asks:
+
+- `RUN_DATABASE CSV path:`
+- `ANALYSIS_DATABASE directory (for per-table CSV files):`
+
+For CSV mode, analyses/artifacts are stored as per-table CSV files in the analysis directory.
+
+### Foundry prompt details
+
+When `foundry` is selected, the wizard:
+
+1. Runs `fdt config` and exits on failure.
+2. Verifies Foundry connectivity with `FoundryContext().multipass.get_user_info()`.
+3. Asks:
+   - `Foundry base directory (must already exist in Foundry):`
+   - `Analysis directory name:`
+4. Derives:
+   - `ANALYSIS_DB_PATH = <base>/<analysis_name>`
+   - `RUN_DB_PATH = <base>/runs`
+   - `ARTIFACT_DB_PATH = <base>/artifacts`
+5. Prompts `Use these paths?` and optionally allows manual overrides.
+
+Validation rules:
+
+- Base path must be absolute (start with `/`).
+- Analysis directory name must not contain `/` and must not start with `.`.
+
+### Initialization defaults
+
+`Initialize databases now?` defaults to:
+
+- `true` for `sqlite` and `csv`
+- `false` for `foundry`
+
+If enabled, it initializes:
+
+- systems backend storage
+- analysis backend storage
+- artifact backend storage
+
+## Simulation input schemas
+
+Simulation YAML/CSV structure is documented here:
+
+- [YAML Format](/docs/user-guide/yaml-format)
+- [System Types](/docs/user-guide/system-types)
+- [CSV Format](/docs/user-guide/csv-format)
+- [Parametrization](/docs/user-guide/parametrization)
+
+## Run schedules
+
+MDFactory uses `run_schedules.yaml` to define simulation protocols. This file specifies:
+
+- Minimization steps
+- Equilibration stages (NVT, NPT)
+- Production run length
+- Output frequencies
+
+Find templates in `config_templates/run_schedules.yaml`.
+
+## Environment variables
+
+Override config paths with environment variables:
+
+```bash
+export MDFACTORY_CONFIG=/path/to/config.ini      # use a specific config file
+export MDFACTORY_CONFIG_DIR=/path/to/config/dir   # override config directory
+export MDFACTORY_DATA_DIR=/path/to/data           # override data directory
+```
+
+## Configuration precedence
+
+Settings are loaded in this order (later values override earlier):
+
+1. Default values (computed at runtime, including platform-appropriate data paths)
+2. User config file (`~/.config/mdfactory/config.ini`)
+3. Config file specified via `MDFACTORY_CONFIG` environment variable

@@ -1,0 +1,19 @@
+{
+  "title": "User Guide",
+  "pages": [
+    "configuration",
+    "yaml-format",
+    "cli-reference",
+    "agentic-ai",
+    "sync",
+    "foundry-dev-tools",
+    "tutorial-mixedbox-campaign",
+    "parametrization",
+    "csv-format",
+    "system-types",
+    "workflows",
+    "executing-analyses",
+    "running-on-hpc",
+    "troubleshooting"
+  ]
+}

@@ -1,0 +1,52 @@
+# LNP Example: ALC-0315 based lipid nanoparticle
+# Composition based on BNT162b2 mRNA vaccine formulation
+#
+# Core: ALC-0315 (ionizable lipid) + Cholesterol
+# Shell: ALC-0315 + DSPC (helper lipid) + Cholesterol + ALC-0159 (PEG-lipid)
+
+engine: gromacs
+parametrization: cgenff
+simulation_type: lnp
+
+system:
+  radius: 120.0  # Total LNP radius in Angstroms
+  shell_thickness: 28.0  # Typical lipid monolayer thickness
+  padding: 30.0
+
+  core:
+    target_density: 0.95
+    species:
+      # ALC-0315 neutral (67% of total core)
+      - fraction: 0.67
+        resname: ALN
+        smiles: "CCCCCCCC[C@@H](CCCCCC)C(=O)OCCCCCCN(CCCCO)CCCCCCOC(=O)[C@@H](CCCCCC)CCCCCCCC"
+      # ALC-0315 protonated (5% of total core)
+      - fraction: 0.05
+        resname: ALP
+        smiles: "CCCCCCCC[C@@H](CCCCCC)C(=O)OCCCCCC[N@H+](CCCCO)CCCCCCOC(=O)[C@@H](CCCCCC)CCCCCCCC"
+      # Cholesterol (28% of total core)
+      - fraction: 0.28
+        resname: CHL
+        smiles: "CC(C)CCC[C@@H](C)[C@H]1CC[C@H]2[C@@H]3CC=C4C[C@@H](O)CC[C@]4(C)[C@H]3CC[C@]12C"
+
+  shell:
+    z0: 10.0
+    area_per_lipid: 65.0
+    species:
+      # ALC-0315 neutral (8.8% of shell)
+      - fraction: 0.088
+        resname: ALN
+        smiles: "CCCCCCCC[C@@H](CCCCCC)C(=O)OCCCCCCN(CCCCO)CCCCCCOC(=O)[C@@H](CCCCCC)CCCCCCCC"
+      # DSPC - helper lipid (22.3% of shell)
+      - fraction: 0.223
+        resname: DSP
+        smiles: "CCCCCCCCCCCCCCCCCC(=O)OC[C@H](CO[P@](=O)([O-])OCC[N+](C)(C)C)OC(=O)CCCCCCCCCCCCCCCCC"
+      # Cholesterol (63.3% of shell)
+      - fraction: 0.633
+        resname: CHL
+        smiles: "CC(C)CCC[C@@H](C)[C@H]1CC[C@H]2[C@@H]3CC=C4C[C@@H](O)CC[C@]4(C)[C@H]3CC[C@]12C"
+      # ALC-0159 - PEG-lipid (5.6% of shell)
+      - fraction: 0.056
+        resname: PEG
+        smiles: "CCCCCCCCCCCCCCCN(CCCCCCCCCCCCCC)C(=O)COCCOC"
+

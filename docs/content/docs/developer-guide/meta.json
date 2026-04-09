@@ -1,0 +1,13 @@
+{
+  "title": "Developer Guide",
+  "pages": [
+    "architecture",
+    "ai-development",
+    "adding-parametrization",
+    "extending-engines",
+    "custom-builders",
+    "adding-analyses-artifacts",
+    "testing",
+    "contributing"
+  ]
+}

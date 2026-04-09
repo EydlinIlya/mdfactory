@@ -1,0 +1,217 @@
+---
+title: Sync & Databases
+description: Push and pull systems, analyses, and artifacts across supported backends
+---
+
+The sync commands use the backend configured in your active config file (`mdfactory config path`). The current code supports:
+
+<Cards className="grid-cols-3">
+  <Card title="SQLite" description="Default local backend using `runs.db` and `analysis.db` files." />
+  <Card title="CSV" description="File-based backend using `runs.csv` plus per-table analysis/artifact CSV files." />
+  <Card title="Foundry" description="Enterprise backend with configured dataset paths for runs, analyses, and artifacts." />
+</Cards>
+
+## Initialize backend storage
+
+Initialization creates the backend objects used by sync commands: SQL tables for SQLite, CSV files/directories for CSV mode, or datasets for Foundry mode.
+You only need to run these when setting up a new backend or after intentionally resetting storage.
+
+```bash
+mdfactory sync init systems
+mdfactory sync init analysis
+mdfactory sync init artifacts
+```
+
+Use `--force` to reset and recreate existing tables or datasets.
+
+For Foundry, configure and validate first:
+
+```bash
+mdfactory config init
+mdfactory sync init check
+```
+
+`sync init check` verifies Foundry connectivity and checks that configured paths exist (`BASE_PATH`, `RUN_DB_PATH`, `ANALYSIS_DB_PATH`, `ARTIFACT_DB_PATH`).
+
+## Push commands
+
+Push commands scan local simulation folders and write structured metadata/results to the configured backend.
+They support duplicate-handling modes:
+
+- default: raises on conflicting duplicate keys
+- `--diff`: skip existing keys
+- `--force`: overwrite existing keys
+
+For `sync push systems`, `sync push analysis`, and `sync push artifacts`, the code expects exactly one of:
+
+- a positional `SOURCE`
+- `--csv`
+
+### Push systems
+
+`sync push systems` discovers simulation folders, validates `BuildInput` YAML, computes simulation status, and writes run-level records into `RUN_DATABASE`.
+
+From a build summary YAML:
+
+```bash
+mdfactory sync push systems build_summary.yaml
+```
+
+From a directory root:
+
+```bash
+mdfactory sync push systems /path/to/simulations
+```
+
+From a CSV plus an explicit search root:
+
+```bash
+mdfactory sync push systems \
+  --csv sample_input.csv \
+  --csv-root /path/to/output_systems
+```
+
+Conflict-handling flags:
+
+```bash
+mdfactory sync push systems build_summary.yaml --diff
+mdfactory sync push systems build_summary.yaml --force
+```
+
+### Push analyses
+
+`sync push analysis` reads completed analysis outputs from `.analysis/<analysis_name>.parquet`, stores row/column metadata, and serializes the analysis frame into `data_csv` for backend retrieval.
+
+```bash
+mdfactory sync push analysis build_summary.yaml
+mdfactory sync push analysis build_summary.yaml --analysis-name area_per_lipid
+```
+
+### Push artifacts
+
+`sync push artifacts` reads artifact entries from analysis metadata and stores file lists plus checksums in artifact tables.
+
+```bash
+mdfactory sync push artifacts build_summary.yaml
+mdfactory sync push artifacts build_summary.yaml --artifact-name bilayer_snapshot
+```
+
+## Pull commands
+
+Pull commands query the backend and print to CLI by default.
+When you pass `--output`, results are written to `.csv` (default) or `.json` (JSON lines) and include full columns.
+
+### Systems
+
+```bash
+mdfactory sync pull systems --status completed --simulation-type bilayer
+```
+
+Write to disk:
+
+```bash
+mdfactory sync pull systems --output systems.csv
+mdfactory sync pull systems --full --output systems.json
+```
+
+Without `--full`, CLI output is a summary view (`hash`, `simulation_type`, `parametrization`, `status`, `directory`).
+
+### Analyses
+
+Overview:
+
+```bash
+mdfactory sync pull analysis --overview
+```
+
+Specific analysis table:
+
+```bash
+mdfactory sync pull analysis \
+  --analysis-name area_per_lipid \
+  --hash ABC123 \
+  --output apl.csv
+```
+
+Use `--overview` to inspect completion status across analyses; use `--analysis-name` to retrieve records from a specific `ANALYSIS_*` table.
+
+### Artifacts
+
+Overview:
+
+```bash
+mdfactory sync pull artifacts --overview
+```
+
+Specific artifact table:
+
+```bash
+mdfactory sync pull artifacts \
+  --artifact-name bilayer_snapshot \
+  --output snapshots.csv
+```
+
+Use `--overview` for completion/status-level tracking and `--artifact-name` for detailed file/checksum metadata.
+
+## Output shape (table structure)
+
+The sync backend stores four logical record types:
+
+| Logical table | Primary key behavior | Key columns |
+|---|---|---|
+| `RUN_DATABASE` | keyed by `hash` | `hash`, `engine`, `parametrization`, `simulation_type`, `directory`, `status`, `timestamp_utc`, plus `input_data` and `input_data_type` |
+| `ANALYSIS_OVERVIEW` | keyed by `(hash, item_type, item_name)` | `hash`, `simulation_type`, `directory`, `item_type`, `item_name`, `status`, `row_count`, `file_count`, `updated_at` |
+| `ANALYSIS_<name>` | keyed by `hash` | `hash`, `directory`, `simulation_type`, `row_count`, `columns`, `data_csv`, `data_path`, `timestamp_utc` |
+| `ARTIFACT_<name>` | keyed by `hash` | `hash`, `directory`, `simulation_type`, `file_count`, `files`, `checksums`, `timestamp_utc` |
+
+`ANALYSIS_<name>.columns`, `ARTIFACT_<name>.files`, and `ARTIFACT_<name>.checksums` are JSON-encoded strings.
+`ANALYSIS_<name>.data_csv` stores the serialized analysis dataframe so results can be pulled directly from the backend without local parquet access.
+
+## Backend file/dataset layout
+
+- SQLite:
+  `RUN_DATABASE` is stored in `sqlite.RUN_DB_PATH`; analysis/artifact/overview tables are stored in `sqlite.ANALYSIS_DB_PATH`.
+- CSV:
+  `RUN_DATABASE` is `csv.RUN_DB_PATH`; analysis/artifact/overview are per-table files under `csv.ANALYSIS_DB_PATH` (for example `ANALYSIS_OVERVIEW.csv` and `ANALYSIS_area_per_lipid.csv`).
+- Foundry:
+  Runs use `foundry.RUN_DB_PATH`; analysis tables are under `foundry.ANALYSIS_DB_PATH`; artifact tables are under `foundry.ARTIFACT_DB_PATH`.
+
+## Clear commands
+
+Clear commands delete rows from selected sync tables/datasets after confirmation prompts.
+
+Clear runs:
+
+```bash
+mdfactory sync clear systems
+```
+
+Clear specific analysis or artifact tables:
+
+```bash
+mdfactory sync clear analysis --analysis-name area_per_lipid
+mdfactory sync clear analysis --artifact-name bilayer_snapshot
+```
+
+Clear grouped analysis storage:
+
+```bash
+mdfactory sync clear analysis --overview
+mdfactory sync clear analysis --analyses
+mdfactory sync clear analysis --artifacts
+mdfactory sync clear analysis --all
+```
+
+Clear everything, including runs:
+
+```bash
+mdfactory sync clear all
+```
+
+## Next steps
+
+<Cards>
+  <Card title="Configuration" href="/docs/user-guide/configuration" />
+  <Card title="Foundry Dev Tools" href="/docs/user-guide/foundry-dev-tools" />
+  <Card title="CLI Reference" href="/docs/user-guide/cli-reference" />
+</Cards>

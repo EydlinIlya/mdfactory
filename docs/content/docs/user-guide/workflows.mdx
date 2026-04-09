@@ -1,0 +1,89 @@
+---
+title: Workflows
+description: Nextflow scripts that are currently checked into the repository
+---
+
+The repository contains Nextflow scripts under `workflows/`. The two-stage flow is built around:
+
+- `workflows/build.nf` — generate system folders and build files from CSV
+- `workflows/simulate.nf` — run the GROMACS simulation chain
+
+Those scripts match the current `mdfactory prepare-build` and `mdfactory build` commands plus the GROMACS file layout produced by the builders.
+
+## Full pipeline
+
+The easiest way to run both stages is the provided shell script:
+
+```bash
+cd workflows/
+bash run_full_pipeline.sh
+```
+
+Edit the variables at the top of `run_full_pipeline.sh` to set your CSV input and output directory. The script runs the build stage followed by the simulation stage.
+
+## Stage 1: generate build folders
+
+`build.nf` expects a CSV input file and an output directory:
+
+```bash
+nextflow run workflows/build.nf \
+  --csv_file systems.csv \
+  --output_dir results
+```
+
+What it does:
+
+1. Runs `mdfactory prepare-build`.
+2. Reads the summary YAML written into the output directory.
+3. Builds each generated hash directory with `mdfactory build`.
+
+The summary YAML filename is derived from the CSV stem. For example, `systems.csv` produces `results/systems.yaml`.
+
+## Stage 2: run the GROMACS chain
+
+`simulate.nf` consumes the stage-1 output directory plus the summary YAML:
+
+```bash
+nextflow run workflows/simulate.nf \
+  -c workflows/simulate.config \
+  --base_dir results \
+  --config_yaml results/systems.yaml
+```
+
+`simulate.nf` executes this fixed sequence for each hash listed in the summary YAML:
+
+1. Minimization using `em.mdp`
+2. NVT equilibration using `nvt.mdp`
+3. NPT equilibration using `npt.mdp`
+4. Production using `md.mdp`
+
+Outputs are published back into each simulation directory under `--base_dir`.
+
+## Expected directory shape
+
+<Files>
+  <Folder name="<hash> (after build.nf)" defaultOpen>
+    <File name="system.pdb" />
+    <File name="topology.top" />
+    <File name="em.mdp" />
+    <File name="nvt.mdp" />
+    <File name="npt.mdp" />
+    <File name="md.mdp" />
+  </Folder>
+  <Folder name="<hash> (after simulate.nf)" defaultOpen>
+    <File name="min.gro" />
+    <File name="nvt.gro" />
+    <File name="npt.gro" />
+    <File name="prod.gro" />
+    <File name="prod.xtc" />
+    <File name="prod.edr" />
+  </Folder>
+</Files>
+
+## Next steps
+
+<Cards>
+  <Card title="Running on HPC" href="/docs/user-guide/running-on-hpc" />
+  <Card title="Quick Start" href="/docs/quick-start" />
+  <Card title="CLI Reference" href="/docs/user-guide/cli-reference" />
+</Cards>

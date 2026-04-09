@@ -1,0 +1,211 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mdfactory"
+dynamic = ["version"]
+description = "Library for high-throughput setup and management of MD simulations"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Merck KGaA, Darmstadt, Germany" }
+]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "cyclopts",
+    "loguru",
+    "matplotlib",
+    "MDAnalysis>=2.0",
+    "networkx",
+    "numpy",
+    "pandas",
+    "platformdirs",
+    "pyarrow",
+    "pydantic>=2.0",
+    "PyYAML",
+    "questionary",
+    "scipy",
+]
+
+[project.urls]
+Homepage = "https://github.com/emdgroup/mdfactory"
+
+[project.optional-dependencies]
+foundry = [
+    "foundry-dev-tools",
+]
+submitit = [
+    "submitit>=1.5.1",
+]
+dev = [
+    "bump-my-version",
+    "hatch",
+    "pytest",
+    "pytest-cov",
+    "pytest-mock",
+    "tqdm",
+    "ruff",
+    "pyinstrument",
+    "pre-commit",
+]
+
+[tool.hatch.version]
+path = "mdfactory/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["mdfactory"]
+
+# These files are git-tracked (force-added) but match root .gitignore patterns,
+# so hatchling excludes them unless explicitly force-included.
+[tool.hatch.build.force-include]
+"mdfactory/setup/data/spc216.gro" = "mdfactory/setup/data/spc216.gro"
+"mdfactory/tests/testfiles/cgenff_output.itp" = "mdfactory/tests/testfiles/cgenff_output.itp"
+"mdfactory/run_schedules/gromacs" = "mdfactory/run_schedules/gromacs"
+
+[tool.bumpversion]
+current_version = "0.1.0"
+commit = true
+tag = true
+tag_name = "v{new_version}"
+
+[[tool.bumpversion.files]]
+filename = "mdfactory/__init__.py"
+
+[project.scripts]
+mdfactory = "mdfactory.cli:main"
+
+# --- Pixi package manager ---------------------------------------------------
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["linux-64", "osx-arm64", "osx-64"]
+
+[tool.pixi.dependencies]
+python = ">=3.11"
+rdkit = "*"
+openff-toolkit = ">=0.14"
+openff-interchange = ">=0.3"
+openff-units = "*"
+openff-nagl = "*"
+openmm = "*"
+
+[tool.pixi.pypi-dependencies]
+mdfactory = { path = ".", editable = true }
+
+[tool.pixi.tasks]
+test = "pytest -k 'not build' mdfactory"
+# lint = "ruff check ."
+# format-check = "ruff format --check ."
+
+[tool.pixi.environments]
+default = { solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }
+
+# --- Ruff linter/formatter ---------------------------------------------------
+
+[tool.ruff]
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+    "development_testing",
+]
+
+line-length = 100
+indent-width = 4
+
+target-version = "py311"
+
+[tool.ruff.lint]
+# Rules to verify. See https://docs.astral.sh/ruff/rules/
+select = [
+    "F", # Pyflakes, ruff default
+    "E4", # Pycodestyle, ruff default
+    "E7", # Pycodestyle, ruff default
+    "E9", # Pycodestyle, ruff default
+    # "D", # Pydocstyle
+    "I", # isort
+    "W", # Warnings
+    "PL", # Pylint
+    "D401", # Imperative mood for docstrings
+    "E501", # Maximum line length 
+]
+
+ignore = [
+    "D105", # Missing docstring in magic functions
+    "D107", # Missing docstring in __init__
+    "PLR0912", # Too many branches
+    "PLR0913", # Too many arguments in function definition
+    "PLR0915", # Too many statements
+    "PLR2004", # Magic value used in comparison
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings.
+quote-style = "double"
+
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "auto"
+
+# Enable auto-formatting of code examples in docstrings. Markdown,
+# reStructuredText code/literal blocks and doctests are all supported.
+#
+# This is currently disabled by default, but it is planned for this
+# to be opt-out in the future.
+docstring-code-format = false
+
+# Set the line length limit used when formatting code snippets in
+# docstrings.
+#
+# This only has an effect when the `docstring-code-format` setting is
+# enabled.
+docstring-code-line-length = "dynamic"
+
+[tool.pytest.ini_options]
+markers = [
+    "foundry_live",
+    "slow: long-running tests (deselected by default, run with -m slow)",
+]
+addopts = "-m 'not foundry_live and not slow' -v --cov mdfactory --cov-report xml:cov.xml --cov-report term"
+
+[tool.coverage.run]
+omit = ["mdfactory/tests/*"]

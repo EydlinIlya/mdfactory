@@ -1,0 +1,277 @@
+---
+title: YAML Format
+description: Complete guide to the BuildInput YAML schema used by mdfactory build
+---
+
+This page documents the YAML input format used by:
+
+```bash
+mdfactory build <input.yaml> <output_dir>
+```
+
+The YAML is parsed into the `BuildInput` model, which combines:
+
+- top-level run settings (`simulation_type`, `engine`, `parametrization`)
+- `system` composition (varies by simulation type)
+- optional `parametrization_config`
+
+## Top-level schema
+
+| Key | Required | Type | Notes |
+|---|---|---|---|
+| `simulation_type` | Yes | string | One of `mixedbox`, `bilayer`, `lnp` |
+| `system` | Yes | object | Shape depends on `simulation_type` |
+| `parametrization` | No | string | `cgenff` or `smirnoff` (default: `cgenff`) |
+| `parametrization_config` | No | object | If omitted, defaults are injected based on `parametrization` |
+| `engine` | No | string | Currently only `gromacs` (default: `gromacs`) |
+
+## How `system` works
+
+The `system` block is type-dispatched from `simulation_type`:
+
+- `mixedbox` -> `MixedBoxComposition`
+- `bilayer` -> `BilayerComposition`
+- `lnp` -> `LNPComposition`
+
+Each type has different required fields and validation rules.
+
+## Species block basics
+
+Most system types include species entries with this pattern:
+
+```yaml
+system:
+  species:
+    - smiles: "CCO"
+      resname: ETH
+      count: 100
+```
+
+Species-level rules:
+
+- `resname` is required and uppercased automatically.
+- `resname` max length is 3 characters.
+- `smiles` is canonicalized and validated; ambiguous stereochemistry is rejected.
+- Each species must include `count` or `fraction`.
+
+Composition-level rules:
+
+- Use either counts for all species or fractions for all species.
+- If fractions are used, they must sum exactly to `1.0` and `total_count` is required.
+- Zero-count species are removed after validation.
+
+## Parametrization config
+
+### Default behavior
+
+If `parametrization_config` is omitted:
+
+- `parametrization: smirnoff` -> default `SmirnoffConfig`
+- `parametrization: cgenff` -> default `CgenffConfig`
+
+### SMIRNOFF config example
+
+```yaml
+parametrization: smirnoff
+parametrization_config:
+  type: smirnoff
+  forcefield: openff-2.2.0.offxml
+  water_model: opc3.offxml
+  charge_method: openff-gnn-am1bcc-0.1.0-rc.3.pt
+```
+
+### CGenFF config example
+
+```yaml
+parametrization: cgenff
+parametrization_config:
+  type: cgenff
+```
+
+CGenFF installation path is configured globally via `SILCSBIODIR` in `mdfactory config init` / config file.
+
+## Ionization block
+
+`mixedbox`, `bilayer`, and `lnp` all support:
+
+```yaml
+ionization:
+  neutralize: true
+  concentration: 0.15
+  min_distance: 5.0
+  seed: 42
+```
+
+Defaults:
+
+- `neutralize: true`
+- `concentration: 0.15`
+- `min_distance: 5.0`
+- `seed: null`
+
+## Full examples by simulation type
+
+These examples intentionally use compounds from the repository example inputs under `examples/` so docs stay aligned with tested/public examples.
+
+<Tabs items={['Mixedbox', 'Bilayer', 'LNP']}>
+<Tab value="Mixedbox">
+
+```yaml
+simulation_type: mixedbox
+engine: gromacs
+parametrization: smirnoff
+system:
+  species:
+    - smiles: "O"
+      resname: SOL
+      fraction: 0.90
+    - smiles: "CCO"
+      resname: ETH
+      fraction: 0.10
+  total_count: 2000
+  target_density: 1.0
+  ionization:
+    neutralize: true
+    concentration: 0.15
+```
+
+`MixedBoxComposition` fields:
+
+- `species` (`SingleMoleculeSpecies[]`) required
+- `total_count` optional if using counts, required if using fractions
+- `target_density` optional, default `1.0`
+- `ionization` optional, defaults applied
+
+</Tab>
+<Tab value="Bilayer">
+
+```yaml
+simulation_type: bilayer
+engine: gromacs
+parametrization: smirnoff
+system:
+  species:
+    - smiles: "CCCCCCCC/C=C\\CCCCCCCC(=O)OC[C@H](CO[P@](=O)([O-])OCC[N+](C)(C)C)OC(=O)CCCCCCC/C=C\\CCCCCCCC"
+      resname: POC
+      count: 128
+  z_padding: 20.0
+  monolayer: false
+  ionization:
+    neutralize: true
+```
+
+`BilayerComposition` fields:
+
+- `species` (`LipidSpecies[]`) required
+- `z_padding` optional, default `20.0`
+- `monolayer` optional, default `false`
+- `ionization` optional, defaults applied
+
+Validation note:
+
+- when `monolayer: false`, each lipid species count must be even.
+
+</Tab>
+<Tab value="LNP">
+
+```yaml
+simulation_type: lnp
+engine: gromacs
+parametrization: smirnoff
+system:
+  radius: 120.0
+  shell_thickness: 28.0
+  padding: 25.0
+  core:
+    species:
+      - smiles: "CCCCCCCC[C@@H](CCCCCC)C(=O)OCCCCCCN(CCCCO)CCCCCCOC(=O)[C@@H](CCCCCC)CCCCCCCC"
+        resname: ALN
+        fraction: 0.50
+      - smiles: "CCCCCCCC[C@@H](CCCCCC)C(=O)OCCCCCC[N@H+](CCCCO)CCCCCCOC(=O)[C@@H](CCCCCC)CCCCCCCC"
+        resname: ALP
+        fraction: 0.20
+      - smiles: "CC(C)CCC[C@@H](C)[C@H]1CC[C@H]2[C@@H]3CC=C4C[C@@H](O)CC[C@]4(C)[C@H]3CC[C@]12C"
+        resname: CHL
+        fraction: 0.30
+    target_density: 0.95
+  shell:
+    species:
+      - smiles: "CCCCCCCC[C@@H](CCCCCC)C(=O)OCCCCCCN(CCCCO)CCCCCCOC(=O)[C@@H](CCCCCC)CCCCCCCC"
+        resname: ALN
+        fraction: 0.50
+      - smiles: "CCCCCCCCCCCCCCCCCC(=O)OC[C@H](CO[P@](=O)([O-])OCC[N+](C)(C)C)OC(=O)CCCCCCCCCCCCCCCCC"
+        resname: DSP
+        fraction: 0.10
+      - smiles: "CC(C)CCC[C@@H](C)[C@H]1CC[C@H]2[C@@H]3CC=C4C[C@@H](O)CC[C@]4(C)[C@H]3CC[C@]12C"
+        resname: CHL
+        fraction: 0.38
+      - smiles: "CCCCCCCCCCCCCCCN(CCCCCCCCCCCCCC)C(=O)COCCOC"
+        resname: PEG
+        fraction: 0.02
+    z0: 10.0
+    area_per_lipid: 65.0
+  ionization:
+    neutralize: true
+```
+
+`LNPComposition` fields:
+
+- `radius` required (`> 0`)
+- `shell_thickness` optional, default `28.0`
+- `padding` optional, default `25.0`
+- `core` required
+- `shell` required
+- `ionization` optional, defaults applied
+
+LNP-specific behavior:
+
+- core/shell species are fraction-based and must each sum to `1.0`
+- counts are computed automatically from geometry/density
+- `core_radius = radius - shell_thickness` must stay positive
+
+</Tab>
+</Tabs>
+
+## Compounds used in docs YAML examples
+
+The YAML examples on this page use these repository compounds:
+
+| Resname | SMILES source |
+|---|---|
+| `SOL` | `examples/mixedbox/water_ethanol_smirnoff.yaml` |
+| `ETH` | `examples/mixedbox/water_ethanol_smirnoff.yaml` |
+| `POC` | `examples/bilayer/popc_smirnoff.yaml` |
+| `ALN` | `examples/lnp/lnp_alc0315_smirnoff.yaml` |
+| `ALP` | `examples/lnp/lnp_alc0315_smirnoff.yaml` |
+| `DSP` | `examples/lnp/lnp_alc0315_smirnoff.yaml` |
+| `CHL` | `examples/lnp/lnp_alc0315_smirnoff.yaml` |
+| `PEG` | `examples/lnp/lnp_alc0315_smirnoff.yaml` |
+
+## What happens during parsing
+
+When YAML is loaded:
+
+1. `simulation_type` selects the correct system model.
+2. Validation checks species, fractions/counts, and type-specific constraints.
+3. Missing defaults are injected (engine, parametrization config, ionization defaults).
+4. A canonical hash is generated from the final normalized model payload.
+
+This is why small YAML changes (including defaults becoming explicit) can change the resulting hash.
+
+## Common validation failures
+
+- Invalid or ambiguous stereochemistry in SMILES
+- `resname` longer than 3 characters
+- Mixed usage of counts and fractions in one composition
+- Fraction sums not equal to `1.0`
+- Missing `total_count` when using fractions in mixedbox/bilayer
+- Bilayer odd lipid counts when `monolayer: false`
+- LNP `radius <= shell_thickness`
+
+## Related pages
+
+<Cards>
+  <Card title="System Types" href="/docs/user-guide/system-types" description="Conceptual differences and field notes for mixedbox, bilayer, and lnp." />
+  <Card title="CSV Format" href="/docs/user-guide/csv-format" description="How the CSV schema maps onto the same BuildInput model." />
+  <Card title="Parametrization" href="/docs/user-guide/parametrization" description="Detailed force-field configuration and method selection." />
+</Cards>

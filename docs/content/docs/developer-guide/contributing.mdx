@@ -1,0 +1,395 @@
+---
+title: Contributing
+description: How to contribute to MDFactory
+---
+
+Contributions to MDFactory are welcome. Here's how to get started.
+
+## Development setup
+
+Clone and install in development mode:
+
+**With pixi (recommended):**
+
+```bash
+git clone https://github.com/emdgroup/mdfactory.git
+cd mdfactory
+pixi install
+```
+
+The `dev` environment includes testing and linting tools. Run tests with:
+
+```bash
+pixi run -e dev test
+```
+
+**Without pixi:**
+
+```bash
+git clone https://github.com/emdgroup/mdfactory.git
+cd mdfactory
+conda create -n mdfactory -c conda-forge python rdkit \
+    openff-toolkit openff-interchange openff-nagl openff-units openmm
+conda activate mdfactory
+pip install -e .[dev]
+```
+
+## Code style
+
+MDFactory uses [Ruff](https://docs.astral.sh/ruff/) for linting and formatting:
+
+```bash
+ruff format .
+ruff check .
+```
+
+Fix auto-fixable lint issues:
+
+```bash
+ruff check --fix .
+```
+
+## Docstrings
+
+All functions must have numpydoc-compliant docstrings:
+
+```python
+def build_system(config, molecules):
+    """
+    Build a simulation system from configuration and molecules.
+
+    Parameters
+    ----------
+    config : dict
+        System configuration with box_size, engine, etc.
+    molecules : list of dict
+        Molecule specifications with SMILES and counts.
+
+    Returns
+    -------
+    positions : ndarray
+        Molecule positions in the simulation box.
+
+    Raises
+    ------
+    ValueError
+        If box_size is negative or molecules list is empty.
+
+    Examples
+    --------
+    >>> config = {"box_size": [3.0, 3.0, 3.0]}
+    >>> molecules = [{"smiles": "O", "count": 100}]
+    >>> positions = build_system(config, molecules)
+    """
+    pass
+```
+
+## Testing
+
+Write tests for all new code:
+
+```bash
+pytest mdfactory/tests/
+```
+
+Check coverage:
+
+```bash
+pytest --cov=mdfactory --cov-report=html
+```
+
+See [Testing](/docs/developer-guide/testing) for details.
+
+## Workflow
+
+<Steps>
+<Step>
+
+Fork the repository
+
+</Step>
+<Step>
+
+Create a feature branch:
+
+```bash
+git checkout -b feature/my-feature
+```
+
+</Step>
+<Step>
+
+Make changes and write tests
+
+</Step>
+<Step>
+
+Format and lint code:
+
+```bash
+ruff format .
+ruff check .
+```
+
+</Step>
+<Step>
+
+Run tests:
+
+```bash
+pixi run -e dev test
+```
+
+Or without pixi:
+
+```bash
+pytest
+```
+
+</Step>
+<Step>
+
+Commit with clear message:
+
+```bash
+git commit -m "Add support for NAMD engine"
+```
+
+</Step>
+<Step>
+
+Push to your fork:
+
+```bash
+git push origin feature/my-feature
+```
+
+</Step>
+<Step>
+
+Open a pull request
+
+</Step>
+</Steps>
+
+## Pull request guidelines
+
+**Title format**
+
+Use clear, descriptive titles:
+- `Add NAMD engine support`
+- `Fix bilayer builder box size calculation`
+- `Update GROMACS input file generation`
+
+**Description**
+
+Include:
+- What the PR changes
+- Why the change is needed
+- How to test the changes
+- Related issues (if any)
+
+Example:
+```
+## Changes
+- Implements NAMDEngine class
+- Adds PSF topology generation
+- Updates engine registry
+
+## Testing
+- Added test_namd_engine.py
+- All existing tests pass
+- Tested with sample protein system
+
+Closes #123
+```
+
+**Checklist**
+
+Before submitting:
+- [ ] Tests pass locally
+- [ ] Code is formatted with Ruff
+- [ ] Docstrings added for new functions
+- [ ] Documentation updated if needed
+- [ ] No secrets or credentials in code
+
+## Code review
+
+Maintainers will review your PR. Address feedback by:
+
+```bash
+# Make changes
+git add .
+git commit -m "Address review feedback"
+git push origin feature/my-feature
+```
+
+## Adding documentation
+
+Update docs for new features:
+
+```bash
+cd docs
+bun run dev
+```
+
+Add MDX files in `docs/content/docs/`:
+
+```mdx
+---
+title: New Feature
+description: Description of the feature
+---
+
+## Usage
+
+Explain how to use the feature...
+```
+
+## Project structure
+
+<Files>
+  <Folder name="mdfactory" defaultOpen>
+    <Folder name="mdfactory" defaultOpen>
+      <Folder name="models">
+        <File name="..." />
+      </Folder>
+      <Folder name="setup">
+        <File name="..." />
+      </Folder>
+      <Folder name="simulation">
+        <File name="..." />
+      </Folder>
+      <Folder name="tests">
+        <File name="..." />
+      </Folder>
+      <Folder name="utils">
+        <File name="..." />
+      </Folder>
+    </Folder>
+    <Folder name="docs">
+      <File name="..." />
+    </Folder>
+    <Folder name="workflows">
+      <File name="..." />
+    </Folder>
+    <Folder name="config_templates">
+      <File name="..." />
+    </Folder>
+    <File name="README.md" />
+    <File name="pyproject.toml" />
+  </Folder>
+</Files>
+
+## Common tasks
+
+### Add a new engine
+
+<Steps>
+<Step>
+
+Create `mdfactory/simulation/my_engine.py`
+
+</Step>
+<Step>
+
+Implement `MDEngineInterface`
+
+</Step>
+<Step>
+
+Register in `mdfactory/simulation/__init__.py`
+
+</Step>
+<Step>
+
+Add tests in `mdfactory/tests/test_engines.py`
+
+</Step>
+<Step>
+
+Update docs in `docs/content/docs/developer-guide/extending-engines.mdx`
+
+</Step>
+</Steps>
+
+### Add a new builder
+
+<Steps>
+<Step>
+
+Create `mdfactory/setup/my_builder.py`
+
+</Step>
+<Step>
+
+Implement `SystemBuilderInterface`
+
+</Step>
+<Step>
+
+Register in `mdfactory/setup/__init__.py`
+
+</Step>
+<Step>
+
+Add tests in `mdfactory/tests/test_builders.py`
+
+</Step>
+<Step>
+
+Update docs in `docs/content/docs/developer-guide/custom-builders.mdx`
+
+</Step>
+</Steps>
+
+### Fix a bug
+
+<Steps>
+<Step>
+
+Write a failing test that reproduces the bug
+
+</Step>
+<Step>
+
+Fix the bug
+
+</Step>
+<Step>
+
+Verify test now passes
+
+</Step>
+<Step>
+
+Submit PR with test and fix
+
+</Step>
+</Steps>
+
+## License
+
+This project is licensed under the [MIT License](../../LICENSE). By contributing, you agree that your contributions will be licensed under MIT.
+
+## Getting help
+
+Questions about contributing:
+- Open an issue on GitHub
+- Contact the development team
+- Check existing issues and PRs
+
+## Recognition
+
+Contributors are acknowledged in:
+- Release notes
+- Contributors list
+- Documentation credits
+
+## Next steps
+
+<Cards>
+  <Card title="Architecture" href="/docs/developer-guide/architecture" />
+  <Card title="Testing" href="/docs/developer-guide/testing" />
+  <Card title="Extending Engines" href="/docs/developer-guide/extending-engines" />
+</Cards>

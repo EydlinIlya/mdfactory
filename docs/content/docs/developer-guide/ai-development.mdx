@@ -1,0 +1,76 @@
+---
+title: AI Development
+description: Working with repository-scoped agent instructions and skills
+---
+
+This repository already contains agent-facing instructions. If you use AI assistants to modify the code or docs, keep those instructions in the loop and treat them as part of the development surface.
+
+## Instruction sources in this repo
+
+Two `AGENTS.md` files matter here:
+
+- the repository root `AGENTS.md`
+- `docs/AGENTS.md`, which overrides the root instructions inside `docs/`
+
+In practice:
+
+- the root file describes project scope, code style, tests, and the analysis/artifact architecture
+- the docs file adds docs-site-specific rules for Bun, Fumadocs, generated API docs, and the custom Python doc components
+
+## Skills
+
+The root `AGENTS.md` also documents the skill mechanism available to the agent runtime.
+
+Important properties of that mechanism:
+
+- available skills are session-specific
+- a skill is described by a `SKILL.md` entrypoint on disk
+- the agent is expected to open the relevant `SKILL.md` before using the skill
+- relative paths mentioned by a skill are resolved from the skill directory first
+
+For this repository, treat the `AGENTS.md` file as the source of truth for which skills are available in a given session and how they should be used.
+
+## Good AI-assisted workflow
+
+1. Read the relevant `AGENTS.md` file before editing.
+2. Inspect the implementation before changing docs or examples.
+3. Keep examples tied to checked-in code, command names, file names, and registry entries.
+4. Run the shortest relevant validation loop after changes.
+
+Useful commands in this repo:
+
+```bash
+pytest -k "not build" mdfactory
+```
+
+For docs work:
+
+```bash
+cd docs
+bun install
+bun run docs:generate
+```
+
+## Docs-specific cautions
+
+Inside `docs/`:
+
+- use Bun, not npm or yarn
+- do not manually edit generated API docs
+- regenerate API docs when Python docstrings or public APIs change
+
+Those expectations are documented in `docs/AGENTS.md`.
+
+## Why this page exists
+
+AI tooling is now part of the practical development workflow for this repo, but it should not invent architecture, commands, or workflows. The safest pattern is to let the code and the checked-in agent instructions constrain the output.
+
+For user-facing AI usage (orchestrating builds, analyses, and sync with Claude Code/Codex), see [Agentic AI](/docs/user-guide/agentic-ai) in the User Guide.
+
+## Next steps
+
+<Cards>
+  <Card title="Contributing" href="/docs/developer-guide/contributing" />
+  <Card title="Architecture" href="/docs/developer-guide/architecture" />
+  <Card title="Agentic AI (User Guide)" href="/docs/user-guide/agentic-ai" />
+</Cards>

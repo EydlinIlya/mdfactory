@@ -1,0 +1,229 @@
+---
+title: CLI Reference
+description: Current command surface exposed by `mdfactory`
+---
+
+MDFactory uses a `cyclopts` CLI. Run `mdfactory --help` or `mdfactory <command> --help` for the live command tree.
+
+## Build commands
+
+### `mdfactory prepare-build`
+
+Create one hash directory per CSV row plus a summary YAML in the output directory.
+
+```bash
+mdfactory prepare-build <input.csv> [output_dir]
+```
+
+### `mdfactory build`
+
+Build one simulation from a YAML file into the chosen output directory.
+
+```bash
+mdfactory build <input.yaml> [output_dir]
+```
+
+### `mdfactory check-csv`
+
+Validate a CSV by converting each row into a `BuildInput` model and, for bilayers, running the current buildability checks.
+
+```bash
+mdfactory check-csv <input.csv>
+```
+
+## Utility commands
+
+### `mdfactory clean`
+
+Clear cached molecule parameters and or run-database content after confirmation.
+
+```bash
+mdfactory clean
+```
+
+### `mdfactory showdb`
+
+Show basic information about the molecule or run database.
+
+```bash
+mdfactory showdb --name mol
+mdfactory showdb --name run
+```
+
+## Analysis commands
+
+### `mdfactory analysis run`
+
+`SOURCE` must be either a simulation directory root or a build summary YAML.
+
+```bash
+mdfactory analysis run SOURCE [options]
+```
+
+Important options:
+
+- `--analysis`
+- `--simulation-type`
+- `--hash`
+- `--skip-existing`
+- `--start-ns`
+- `--end-ns`
+- `--last-ns`
+- `--stride`
+- `--max-residues`
+- `--analysis-backend`
+- `--analysis-workers`
+- `--slurm`
+- `--account`
+- `--partition`
+- `--time`
+- `--cpus`
+- `--mem-gb`
+- `--qos`
+- `--constraint`
+- `--log-dir`
+
+### `mdfactory analysis info`
+
+Show registered-versus-completed analysis status for discovered simulations.
+
+```bash
+mdfactory analysis info SOURCE [options]
+```
+
+Important options:
+
+- `--simulation-type`
+- `--hash`
+- `--output`
+- `--chemistry-output`
+- `--chemistry-mode`
+
+### `mdfactory analysis preprocess`
+
+Run a preprocessing script for each discovered simulation.
+
+```bash
+mdfactory analysis preprocess SOURCE --script ./script.sh [options]
+```
+
+### `mdfactory analysis remove`
+
+Remove saved analysis outputs after confirmation.
+
+```bash
+mdfactory analysis remove SOURCE [options]
+```
+
+## Artifact commands
+
+### `mdfactory analysis artifacts run`
+
+```bash
+mdfactory analysis artifacts run SOURCE [options]
+```
+
+Important options:
+
+- `--artifact`
+- `--simulation-type`
+- `--hash`
+- `--output-prefix`
+- `--vmd-path`
+- `--ffmpeg-path`
+- `--skip-existing`
+- `--slurm`
+- `--account`
+
+### `mdfactory analysis artifacts info`
+
+```bash
+mdfactory analysis artifacts info SOURCE [options]
+```
+
+### `mdfactory analysis artifacts remove`
+
+```bash
+mdfactory analysis artifacts remove SOURCE [options]
+```
+
+## Sync commands
+
+### `mdfactory sync init`
+
+```bash
+mdfactory sync init systems [--force]
+mdfactory sync init analysis [--force]
+mdfactory sync init artifacts [--force]
+mdfactory sync init config
+mdfactory sync init check
+```
+
+### `mdfactory sync push`
+
+For each push command, provide exactly one of a positional `SOURCE` or `--csv`.
+
+```bash
+mdfactory sync push systems [SOURCE] [options]
+mdfactory sync push analysis [SOURCE] [options]
+mdfactory sync push artifacts [SOURCE] [options]
+```
+
+Common push options:
+
+- `--csv`
+- `--csv-root`
+- `--force`
+- `--diff`
+
+Specific options:
+
+- `sync push analysis --analysis-name <name>`
+- `sync push artifacts --artifact-name <name>`
+
+### `mdfactory sync pull`
+
+```bash
+mdfactory sync pull systems [options]
+mdfactory sync pull analysis [options]
+mdfactory sync pull artifacts [options]
+```
+
+Key pull options:
+
+- `--status`
+- `--simulation-type`
+- `--parametrization`
+- `--engine`
+- `--hash`
+- `--output`
+- `--full`
+- `--overview`
+- `--analysis-name`
+- `--artifact-name`
+
+### `mdfactory sync clear`
+
+```bash
+mdfactory sync clear systems
+mdfactory sync clear analysis [options]
+mdfactory sync clear all
+```
+
+`sync clear analysis` supports:
+
+- `--analysis-name`
+- `--artifact-name`
+- `--overview`
+- `--analyses`
+- `--artifacts`
+- `--all`
+
+## Next steps
+
+<Cards>
+  <Card title="Quick Start" href="/docs/quick-start" />
+  <Card title="Executing Analyses" href="/docs/user-guide/executing-analyses" />
+  <Card title="Sync & Databases" href="/docs/user-guide/sync" />
+  <Card title="Agentic AI" href="/docs/user-guide/agentic-ai" />
+</Cards>

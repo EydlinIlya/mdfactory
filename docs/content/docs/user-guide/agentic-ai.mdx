@@ -1,0 +1,203 @@
+---
+title: Agentic AI (Claude Code & Codex)
+description: Use AI agents to plan and execute mdfactory workflows without drifting from the real CLI
+---
+
+This guide shows how to control MDFactory with agentic coding assistants while keeping outputs grounded in the checked-in code, commands, and docs.
+
+<Callout type="info" title="AI is a control plane, not a replacement CLI">
+Use AI to plan, inspect, and orchestrate work. Keep execution tied to real `mdfactory` commands and files in this repository.
+</Callout>
+
+## What to keep in context
+
+When you start an agent session for this repo, include these files first:
+
+<Files>
+  <Folder name="Repository instructions" defaultOpen>
+    <File name="AGENTS.md" />
+    <File name="SKILLS.md" />
+  </Folder>
+  <Folder name="Docs instructions" defaultOpen>
+    <File name="docs/AGENTS.md" />
+  </Folder>
+</Files>
+
+These files define project scope, command expectations, docs workflow, and agent behavior constraints.
+
+## Session bootstrap
+
+<Steps>
+<Step>
+
+## Verify the runtime
+
+```bash
+mdfactory --help
+mdfactory config path
+```
+
+</Step>
+<Step>
+
+## Confirm config and storage backend
+
+```bash
+mdfactory config show
+mdfactory sync init check
+```
+
+</Step>
+<Step>
+
+## Inspect before changing
+
+Have the agent read the target implementation files first (for example `mdfactory/cli.py`, analysis modules, and the matching docs pages), then propose edits.
+
+</Step>
+</Steps>
+
+## Prompt templates
+
+Use these as starting points. Both are intentionally strict about reading repo instructions first.
+
+<Tabs items={['Codex', 'Claude Code']}>
+<Tab value="Codex">
+
+```text
+You are editing mdfactory in-repo.
+1) Read AGENTS.md, docs/AGENTS.md, and SKILLS.md first.
+2) Inspect mdfactory/cli.py and the relevant modules before proposing changes.
+3) Use only commands implemented in the current codebase.
+4) Show a short plan, then execute edits, then run the shortest relevant validation.
+5) For docs changes, keep examples aligned with real CLI flags and command groups.
+```
+
+</Tab>
+<Tab value="Claude Code">
+
+```text
+Work in this repository as a code+docs agent.
+- Start by reading AGENTS.md, docs/AGENTS.md, and SKILLS.md.
+- Ground all recommendations in current source files, not assumptions.
+- For mdfactory usage guidance, verify command names in mdfactory/cli.py.
+- Prefer small, verifiable edits with explicit file paths.
+- After edits, run focused checks and summarize what changed.
+```
+
+</Tab>
+</Tabs>
+
+## High-value automation patterns
+
+### Build campaign orchestration
+
+```bash
+mdfactory check-csv input.csv
+mdfactory prepare-build input.csv output_systems
+mdfactory build output_systems/<hash>/<hash>.yaml output_systems/<hash>
+```
+
+Ask the agent to:
+- validate CSV assumptions against the current schema docs
+- detect likely bilayer buildability issues early
+- generate a run checklist from produced hash directories
+
+### Analysis orchestration
+
+```bash
+mdfactory analysis run output_systems/input.yaml --analysis all --skip-existing
+mdfactory analysis info output_systems/input.yaml --output analysis_status.csv
+mdfactory analysis artifacts run output_systems/input.yaml --artifact all --skip-existing
+```
+
+Ask the agent to:
+- select analyses by system type and runtime budget
+- produce a rerun list from failed or missing outputs
+- summarize completed vs pending status from the generated CSV/report
+
+### Sync/database orchestration
+
+```bash
+mdfactory sync init systems
+mdfactory sync init analysis
+mdfactory sync init artifacts
+mdfactory sync push systems --source output_systems
+mdfactory sync pull analysis --overview
+```
+
+Ask the agent to:
+- verify init order and backend assumptions (`sqlite`/`csv`/`foundry`)
+- run non-destructive pull/overview checks before any clear operation
+- keep a command log for reproducibility
+
+## Safety controls for agent runs
+
+<Accordions type="single" collapsible>
+<Accordion title="Guardrails for destructive commands">
+
+Require explicit confirmation before:
+
+- `mdfactory sync clear ...`
+- `mdfactory clean ...`
+- deleting build or analysis directories
+
+Prefer a dry inspection pass (`pull`, `info`, `--overview`) before clear/delete operations.
+
+</Accordion>
+<Accordion title="Prevent command drift">
+
+Pin the agent to the current implementation:
+
+- verify command groups and flags in `mdfactory/cli.py`
+- reject invented commands
+- require file-path citations for behavioral claims
+
+</Accordion>
+<Accordion title="Keep docs changes trustworthy">
+
+For docs updates, ask the agent to:
+
+- quote exact command forms from current code
+- cross-check against `user-guide/cli-reference.mdx`
+- avoid documenting optional workflows as required defaults
+
+</Accordion>
+</Accordions>
+
+## Troubleshooting AI-assisted runs
+
+<Accordions type="single" collapsible>
+<Accordion title="Agent suggests a command that fails with unknown option">
+
+Re-check the live command surface:
+
+```bash
+mdfactory --help
+mdfactory <group> --help
+mdfactory <group> <command> --help
+```
+
+Then correct prompts to require command verification from `mdfactory/cli.py`.
+
+</Accordion>
+<Accordion title="Agent edits docs but examples do not match implementation">
+
+Ask for a follow-up pass that compares changed docs against:
+
+- `mdfactory/cli.py`
+- `docs/content/docs/user-guide/cli-reference.mdx`
+
+Require explicit mention of mismatches and fixed lines.
+
+</Accordion>
+</Accordions>
+
+## Next steps
+
+<Cards>
+  <Card title="CLI Reference" href="/docs/user-guide/cli-reference" />
+  <Card title="Configuration" href="/docs/user-guide/configuration" />
+  <Card title="Troubleshooting" href="/docs/user-guide/troubleshooting" />
+  <Card title="AI Development (Developer Guide)" href="/docs/developer-guide/ai-development" />
+</Cards>

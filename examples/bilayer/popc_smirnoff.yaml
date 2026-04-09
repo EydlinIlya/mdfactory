@@ -1,0 +1,7 @@
+simulation_type: bilayer
+parametrization: smirnoff
+system:
+  species:
+  - smiles: 'CCCCCCCC/C=C\CCCCCCCC(=O)OC[C@H](CO[P@](=O)([O-])OCC[N+](C)(C)C)OC(=O)CCCCCCC/C=C\CCCCCCCC'
+    resname: POC
+    count: 128

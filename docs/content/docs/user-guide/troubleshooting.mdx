@@ -1,0 +1,100 @@
+---
+title: Troubleshooting
+description: Common issues grounded in the current code paths
+---
+
+## Installation issues
+
+<Accordions type="single" collapsible>
+<Accordion title="Import errors after installation">
+
+Activate the environment and reinstall in editable mode:
+
+```bash
+conda activate mdfactory
+pip install -e .
+```
+
+</Accordion>
+<Accordion title="OpenMM import errors during build">
+
+OpenMM is used during build-time compression and equilibration:
+
+```bash
+conda install -c conda-forge openmm
+```
+
+</Accordion>
+</Accordions>
+
+## Configuration and sync
+
+<Accordions type="single" collapsible>
+<Accordion title="Backend database or CSV file not initialized">
+
+The sync layer expects initialized backend storage. Run the appropriate init command before push or pull:
+
+```bash
+mdfactory sync init systems
+mdfactory sync init analysis
+mdfactory sync init artifacts
+```
+
+</Accordion>
+<Accordion title="Foundry setup fails">
+
+Re-run the interactive setup and validation flow:
+
+```bash
+mdfactory sync init config
+mdfactory sync init check
+```
+
+This is only meaningful when `[database] TYPE = foundry`.
+
+</Accordion>
+</Accordions>
+
+## Build issues
+
+<Accordions type="single" collapsible>
+<Accordion title="Bilayer validation errors">
+
+Use:
+
+```bash
+mdfactory check-csv input.csv
+```
+
+For bilayer rows, this runs the current buildability checks in addition to model validation.
+
+</Accordion>
+<Accordion title="Large systems fail during compression">
+
+The build code uses OpenMM-based compression or equilibration steps. For difficult systems, start with smaller molecule counts or a less aggressive target density and verify the input chemistry first.
+
+</Accordion>
+</Accordions>
+
+## Workflow issues
+
+<Accordions type="single" collapsible>
+<Accordion title="Nextflow stage-2 run cannot find files">
+
+`workflows/simulate.nf` expects:
+
+- a `--base_dir` containing the hash directories
+- a `--config_yaml` summary YAML produced by `mdfactory prepare-build` or `workflows/build.nf`
+
+Make sure both point to the same stage-1 output tree.
+
+</Accordion>
+<Accordion title="Analysis SLURM submission fails immediately">
+
+`mdfactory analysis ... --slurm` requires:
+
+- `pip install "mdfactory[submitit]"`
+- `--account`
+
+</Accordion>
+</Accordions>

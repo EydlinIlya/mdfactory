@@ -1,0 +1,23 @@
+# FORMATTER NOTE: The versions of ufmt, black and usort should be consistent everywhere
+# (pre-commit, environment.yml, requirements.txt, pyproject.toml, ...)
+
+repos:
+# - repo: https://github.com/pycqa/flake8
+#   rev: 7.1.1
+#   hooks:
+#     - id: flake8
+#       additional_dependencies: [pydoclint==0.5.6, Flake8-pyproject==1.2.3]  
+#       args: [--select=DOC]
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.9.2
+  hooks:
+    - id: ruff
+      args: [--fix, --exit-non-zero-on-fix]
+    - id: ruff-format
+# - repo: https://github.com/srstevenson/nb-clean
+#   rev: 4.0.1
+#   hooks:
+#     - id: nb-clean
+#       args:
+#         - --preserve-cell-outputs
+#         - --remove-empty-cells

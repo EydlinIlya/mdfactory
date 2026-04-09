@@ -1,0 +1,10 @@
+simulation_type: mixedbox
+parametrization: smirnoff
+system:
+  species:
+  - smiles: O
+    resname: SOL
+    count: 2000
+  - smiles: CCO
+    resname: ETH
+    count: 200

@@ -1,0 +1,115 @@
+---
+title: Executing Analyses
+description: Run, inspect, and manage analyses with the MDFactory CLI
+---
+
+This guide shows how to run, inspect, and manage analyses with the MDFactory CLI.
+
+## Prerequisites
+
+- MDFactory installed with analysis dependencies.
+- A simulation directory or a build summary YAML from `mdfactory prepare-build`.
+
+`SOURCE` can be either a simulation directory or a build summary YAML.
+
+## Run analyses locally
+
+Run a single analysis:
+
+```bash
+mdfactory analysis run SOURCE --analysis cholesterol_tilt
+```
+
+Run multiple analyses (comma-separated):
+
+```bash
+mdfactory analysis run SOURCE --analysis area_per_lipid,cholesterol_tilt
+```
+
+Run all analyses (default):
+
+```bash
+mdfactory analysis run SOURCE
+```
+
+Skip already completed analyses (default behavior):
+
+```bash
+mdfactory analysis run SOURCE --analysis cholesterol_tilt --skip-existing
+```
+
+Force re-run of completed analyses:
+
+```bash
+mdfactory analysis run SOURCE --analysis cholesterol_tilt --skip-existing=false
+```
+
+## Submit analyses to SLURM
+
+Install submitit support:
+
+```bash
+pip install "mdfactory[submitit]"
+```
+
+Submit one job per simulation and wait for completion:
+
+```bash
+mdfactory analysis run SOURCE \
+  --analysis cholesterol_tilt \
+  --slurm \
+  --account <your-project>-hpc
+```
+
+Adjust SLURM resources and analysis workers:
+
+```bash
+mdfactory analysis run SOURCE \
+  --analysis cholesterol_tilt \
+  --slurm \
+  --account <your-project>-hpc \
+  --partition cpu \
+  --cpus 8 \
+  --mem-gb 16 \
+  --time 4h \
+  --analysis-workers 8
+```
+
+## Inspect analysis status
+
+List available vs completed analyses:
+
+```bash
+mdfactory analysis info SOURCE
+```
+
+Filter by simulation type:
+
+```bash
+mdfactory analysis info SOURCE --simulation-type bilayer
+```
+
+## Remove analyses
+
+Remove all completed analyses (with confirmation):
+
+```bash
+mdfactory analysis remove SOURCE
+```
+
+Limit removal to a simulation type:
+
+```bash
+mdfactory analysis remove SOURCE --simulation-type bilayer
+```
+
+## Output locations
+
+- Analyses are stored under `.analysis/<analysis_name>.parquet`.
+- The registry is stored under `.analysis/metadata.json`.
+
+## Tips
+
+- Use `--analysis` to keep jobs short and focused.
+- For large jobs on SLURM, set `--analysis-workers` to match `--cpus`.
+- If you need to re-run analyses, pass `--skip-existing=false`.

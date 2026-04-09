@@ -1,0 +1,126 @@
+---
+title: Foundry Dev Tools
+description: Configure and use the Foundry backend that exists in the current code
+---
+
+MDFactory has a first-class Foundry backend in the sync layer. That backend is implemented through `foundry_dev_tools` plus the `fdt` command-line tooling used by the interactive config flow.
+
+## What the code expects
+
+The current Foundry path relies on:
+
+- the Python package `foundry_dev_tools`
+- the `fdt` command being available on `PATH`
+
+`mdfactory sync init config` explicitly runs `fdt config`, then validates connectivity by constructing `FoundryContext`.
+
+## Configure the backend
+
+Set the backend type:
+
+```ini
+[database]
+TYPE = foundry
+```
+
+Then run the interactive wizard:
+
+```bash
+mdfactory sync init config
+```
+
+What the wizard does:
+
+1. Runs `fdt config`
+2. Checks for Foundry Dev Tools config files in standard locations
+3. Validates that `FoundryContext()` can connect
+4. Prompts for a Foundry `BASE_PATH`
+5. Prompts for `ANALYSIS_NAME`
+6. Derives dataset paths for runs, molecules, analyses, and artifacts
+7. Writes `~/.mdfactory/config.ini`
+
+## Derived dataset layout
+
+Given:
+
+```ini
+[foundry]
+BASE_PATH = /Group Functions/mdfactory
+ANALYSIS_NAME = analysis
+```
+
+the config flow derives:
+
+- runs: `/Group Functions/mdfactory/runs`
+- molecules: `/Group Functions/mdfactory/molecules`
+- analysis root: `/Group Functions/mdfactory/analysis`
+- artifacts root: `/Group Functions/mdfactory/artifacts`
+
+Within that layout, the code maps:
+
+- `ANALYSIS_OVERVIEW -> <ANALYSIS_DB_PATH>/overview`
+- `ANALYSIS_<NAME> -> <ANALYSIS_DB_PATH>/<name>`
+- `ARTIFACT_<NAME> -> <ARTIFACT_DB_PATH>/<name>`
+
+## Validate the setup
+
+```bash
+mdfactory sync init check
+```
+
+When `[database] TYPE = foundry`, this checks:
+
+- Foundry authentication and connectivity
+- the configured base path
+- the configured runs, molecules, analysis, and artifact dataset roots
+
+## Initialize schemas
+
+After configuration, initialize the datasets used by the sync commands:
+
+```bash
+mdfactory sync init systems
+mdfactory sync init analysis
+mdfactory sync init artifacts
+```
+
+This is the recommended way to establish the expected tables or datasets before pushing data.
+
+## Push and pull with Foundry
+
+Push run metadata:
+
+```bash
+mdfactory sync push systems build_summary.yaml
+```
+
+Push analyses:
+
+```bash
+mdfactory sync push analysis build_summary.yaml
+```
+
+Push artifacts:
+
+```bash
+mdfactory sync push artifacts build_summary.yaml
+```
+
+Query overview data:
+
+```bash
+mdfactory sync pull analysis --overview
+mdfactory sync pull artifacts --overview
+```
+
+## Backend behavior
+
+The Foundry backend is implemented by `FoundryDataSource`, which uses `FoundryContext` and dataset paths from the active config. MDFactory still uses the same high-level sync commands regardless of backend; only the storage implementation changes.
+
+## Next steps
+
+<Cards>
+  <Card title="Sync & Databases" href="/docs/user-guide/sync" />
+  <Card title="Configuration" href="/docs/user-guide/configuration" />
+  <Card title="Architecture" href="/docs/developer-guide/architecture" />
+</Cards>

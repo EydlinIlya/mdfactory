@@ -1,0 +1,43 @@
+---
+title: MDFactory
+description: High-throughput molecular dynamics simulation library
+---
+
+MDFactory is an open source, end-to-end simulation manager for high-throughput molecular dynamics with robust data management. It handles the full pipeline from molecular structure generation through parametrization, system building, simulation, and analysis — with built-in database integration for tracking results at scale.
+
+<img
+  src="/diagrams/light/architecture/pipeline-overview.png"
+  alt="MDFactory pipeline: CSV/YAML input → Structure Generation (RDKit) → Parametrization (OpenFF, CGenFF) → System Build (Mixedbox, Bilayer, LNP) → Simulation (GROMACS, OpenMM) → Analysis, with Database sync to Simulation DB and Analysis DB"
+  className="block dark:hidden"
+  style={{ width: '100%', maxWidth: '900px', margin: '1.5rem auto' }}
+/>
+<img
+  src="/diagrams/dark/architecture/pipeline-overview.png"
+  alt="MDFactory pipeline: CSV/YAML input → Structure Generation (RDKit) → Parametrization (OpenFF, CGenFF) → System Build (Mixedbox, Bilayer, LNP) → Simulation (GROMACS, OpenMM) → Analysis, with Database sync to Simulation DB and Analysis DB"
+  className="hidden dark:block"
+  style={{ width: '100%', maxWidth: '900px', margin: '1.5rem auto' }}
+/>
+
+<FeatureCards>
+  <FeatureCard icon="layers" title="Batch Processing" description="CSV-driven: one row = one system. Run hundreds of systems in parallel via Nextflow on HPC." />
+  <FeatureCard icon="puzzle" title="Modular Pipeline" description="Pluggable build types (mixedbox, bilayer, LNP) with swappable force fields (OpenFF, CGenFF)." />
+  <FeatureCard icon="bar-chart" title="Analysis Framework" description="11+ registered analysis types with parquet + JSON metadata output and extensible registry." />
+  <FeatureCard icon="database" title="Data Integration" description="SQLite, CSV, and Palantir Foundry backends with intelligent push/pull/sync via CLI." />
+</FeatureCards>
+
+## Getting Started
+
+<Cards>
+  <Card title="Installation" href="/docs/installation" description="Install the package and verify the CLI" />
+  <Card title="Quick Start" href="/docs/quick-start" description="Build a simple mixed-box system" />
+  <Card title="Configuration" href="/docs/user-guide/configuration" description="Configure storage, backends, and runtime paths" />
+</Cards>
+
+## Core Guides
+
+<Cards>
+  <Card title="Executing Analyses" href="/docs/user-guide/executing-analyses" description="Run registered analyses and artifacts" />
+  <Card title="20-System Tutorial" href="/docs/user-guide/tutorial-mixedbox-campaign" description="Hands-on campaign with SQLite sync and notebook aggregation" />
+  <Card title="Foundry Dev Tools" href="/docs/user-guide/foundry-dev-tools" description="Configure and use the Foundry backend" />
+  <Card title="Architecture" href="/docs/developer-guide/architecture" description="Understand the current code structure" />
+</Cards>
